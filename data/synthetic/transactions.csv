@@ -1,0 +1,3 @@
+sender_account,receiver_account,amount,timestamp,institution
+ACC_001,ACC_002,50000.0,2026-08-02T16:00:00,State Bank
+ACC_002,ACC_003,45000.0,2026-08-04T11:20:00,Global Bank
