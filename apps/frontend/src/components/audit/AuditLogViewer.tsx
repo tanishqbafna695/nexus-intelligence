@@ -16,6 +16,8 @@ interface AuditLogViewerProps {
   onClose: () => void;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
+
 export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ caseId, isOpen, onClose }) => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,7 +25,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ caseId, isOpen, 
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    fetch(`http://127.0.0.1:8000/api/cases/${caseId}/audit`)
+    fetch(`${API_BASE}/cases/${caseId}/audit`)
       .then((res) => res.json())
       .then((data) => setLogs(data))
       .catch((err) => console.error(err))

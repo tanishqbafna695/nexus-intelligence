@@ -95,10 +95,15 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
         <div>
           <h2 className="text-xs font-bold tracking-widest text-cyan-300 uppercase font-mono"
             style={{ textShadow: '0 0 12px rgba(6,182,212,0.5)' }}>
-            Bayesian Culprit Matrix
+            Investigative Priority Matrix
           </h2>
-          <p className="text-[10px] font-mono text-slate-600">Forensics, Timeline Inconsistencies & Motive Analytics</p>
+          <p className="text-[10px] font-mono text-slate-400">Forensics, Multi-Source Corroboration & Network Prominence</p>
         </div>
+      </div>
+
+      <div className="px-3 py-1.5 bg-cyan-950/30 border-y border-cyan-500/20 text-[9px] font-mono text-slate-400 shrink-0 flex items-center gap-1.5">
+        <span className="text-cyan-400 font-bold">⚖️ DECISION SUPPORT:</span>
+        <span>Scores reflect topological prominence and multi-source corroboration, not judicial proof of guilt.</span>
       </div>
 
       {loading ? (
@@ -112,11 +117,11 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
           {/* Left Column: Suspect list (5 cols) */}
           <div className="col-span-5 border-r border-white/5 flex flex-col overflow-y-auto p-3 space-y-2">
             <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest px-1">
-              Suspect List (Guilt Ordered)
+              Suspect List (Priority Ordered)
             </span>
             {suspects.map(suspect => {
               const isSelected = selectedSuspect?.id === suspect.id;
-              const isCulprit = suspect.guilt_probability >= 80;
+              const isTopPriority = suspect.guilt_probability >= 80;
               return (
                 <button
                   key={suspect.id}
@@ -128,10 +133,10 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
                   style={{
                     background: isSelected ? 'rgba(6,182,212,0.05)' : 'rgba(255,255,255,0.01)',
                     borderColor: isSelected 
-                      ? (isCulprit ? '#EF4444' : '#06B6D4')
+                      ? (isTopPriority ? '#EF4444' : '#06B6D4')
                       : 'rgba(255,255,255,0.04)',
                     boxShadow: isSelected 
-                      ? `0 0 20px ${isCulprit ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.1)'}` 
+                      ? `0 0 20px ${isTopPriority ? 'rgba(239,68,68,0.1)' : 'rgba(6,182,212,0.1)'}` 
                       : 'none',
                   }}
                 >
@@ -144,13 +149,13 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
                     <span 
                       className="text-xs font-mono font-black"
                       style={{ 
-                        color: isCulprit ? '#EF4444' : (suspect.guilt_probability >= 50 ? '#F59E0B' : '#10B981'),
-                        textShadow: isCulprit ? '0 0 10px rgba(239,68,68,0.4)' : 'none'
+                        color: isTopPriority ? '#EF4444' : (suspect.guilt_probability >= 50 ? '#F59E0B' : '#10B981'),
+                        textShadow: isTopPriority ? '0 0 10px rgba(239,68,68,0.4)' : 'none'
                       }}
                     >
                       {suspect.guilt_probability}%
                     </span>
-                    <p className="text-[9px] font-mono text-slate-600">Guilt Prob</p>
+                    <p className="text-[9px] font-mono text-slate-600">Priority</p>
                   </div>
                 </button>
               );
@@ -184,11 +189,11 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
                   </div>
                 </div>
 
-                {/* Guilt bar gauge */}
+                {/* Priority bar gauge */}
                 <div className="p-3 bg-white/1 rounded-xl border border-white/5 space-y-2">
                   <div className="flex justify-between items-center text-xs font-mono">
-                    <span className="text-slate-400 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Bayesian Guilt Score</span>
-                    <span className="font-bold text-red-400 text-glow-cyan">{selectedSuspect.guilt_probability}% probability</span>
+                    <span className="text-slate-400 flex items-center gap-1.5"><Activity className="w-3.5 h-3.5" /> Investigative Priority Score</span>
+                    <span className="font-bold text-red-400 text-glow-cyan">{selectedSuspect.guilt_probability}% priority rating</span>
                   </div>
                   <div className="h-2 rounded-full bg-white/5 overflow-hidden">
                     <div 
@@ -246,7 +251,7 @@ export const CulpritProfilerPanel: React.FC<CulpritProfilerPanelProps> = ({
                 {/* Evidence timeline logs */}
                 <div className="space-y-2">
                   <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">
-                    Inculpatory Fact Breakdown
+                    Corroborated Evidentiary Indicators
                   </span>
                   <div className="space-y-1.5">
                     {selectedSuspect.reasons.map((reason, i) => (

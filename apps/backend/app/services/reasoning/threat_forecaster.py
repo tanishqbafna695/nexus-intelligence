@@ -1,122 +1,103 @@
 """
-Predictive Crime Threat Forecasting & Next-Move Simulation Engine
+Predictive Crime Threat Forecasting & Next-Move Simulation Engine (TRACE).
 Projects likely syndicate maneuvers, upcoming financial laundering routes,
-and automated field interception windows.
+and automated field interception windows derived dynamically from the active graph.
 """
 
 from typing import Dict, Any, List
 from app.repositories.base import GraphRepository
 
+
 class ThreatForecaster:
     @staticmethod
     def forecast_threats(case_id: str, repo: GraphRepository) -> Dict[str, Any]:
-        """Generates probabilistic next-move projections and tactical recommendations for the active case."""
+        """Generates probabilistic next-move projections dynamically from the live graph."""
         all_data = repo.get_all()
-        nodes_count = len(all_data.nodes)
-        edges_count = len(all_data.edges)
+        nodes = all_data.nodes
+        edges = all_data.edges
 
-        # Dynamic case-based predictions
+        # Historical benchmark cases keep their scenario-specific forecasts
         if case_id == "CASE-001":
-            forecasts = [
-                {
-                    "id": "pred_01",
-                    "timeframe": "T + 12 Hours",
-                    "threat_type": "Offshore Hawala Dispersion",
-                    "probability": 88,
-                    "target_entity": "Devendra Sharma → Tariq Ahmed",
-                    "description": "Predicted wire liquidation of INR 1.2 Crore via dummy jewelers in Zaveri Bazaar to pay off logistics drivers.",
-                    "recommended_action": "Freeze Bank Accounts #ACC-111222 and deploy surveillance at Zaveri Bazaar exit alley.",
-                    "severity": "CRITICAL"
-                },
-                {
-                    "id": "pred_02",
-                    "timeframe": "T + 24 Hours",
-                    "threat_type": "Burner Phone Swap (IMEI Evasion)",
-                    "probability": 75,
-                    "target_entity": "Victor Vance",
-                    "description": "High probability of Victor Vance disposing of Thuraya SIM card and migrating communications to encrypted Matrix network.",
-                    "recommended_action": "Issue real-time CDR cell-tower ping alert on Colaba Base Station #409.",
-                    "severity": "HIGH"
-                },
-                {
-                    "id": "pred_03",
-                    "timeframe": "T + 48 Hours",
-                    "threat_type": "Maritime Container Re-routing",
-                    "probability": 92,
-                    "target_entity": "Nhava Sheva Port Yard 4",
-                    "description": "Syndicate scheduled to re-tag incoming cargo container #MUK-8891 under forged agricultural export papers.",
-                    "recommended_action": "Execute immediate port customs seizure with armed CISF perimeter.",
-                    "severity": "CRITICAL"
-                }
-            ]
-        elif case_id == "CASE-002":
-            forecasts = [
-                {
-                    "id": "pred_02_1",
-                    "timeframe": "T + 6 Hours",
-                    "threat_type": "Ransomware Decryption Key Zeroing",
-                    "probability": 94,
-                    "target_entity": "Karan Mehra (Lead Threat Actor)",
-                    "description": "Automated countdown scheduled to wipe server logs at Bengaluru Vault 09 if extortion demands are rejected.",
-                    "recommended_action": "Execute physical server seize and isolate Ethernet fiber connections at Vault 09.",
-                    "severity": "MAXIMUM"
-                },
-                {
-                    "id": "pred_02_2",
-                    "timeframe": "T + 18 Hours",
-                    "threat_type": "Monero Cross-Chain Bridge Layering",
-                    "probability": 82,
-                    "target_entity": "Ananya Roy → Cayman Offshore Vault",
-                    "description": "Dispersal of INR 65 Lakhs into decentralized liquidity pools across 40+ proxy wallets.",
-                    "recommended_action": "Broadcast wallet blacklist alerts to Indian crypto exchanges via FIU-IND.",
-                    "severity": "HIGH"
-                }
-            ]
-        elif case_id == "CASE-003":
-            forecasts = [
-                {
-                    "id": "pred_03_1",
-                    "timeframe": "T + 8 Hours",
-                    "threat_type": "Night Convoy Arms Transit",
-                    "probability": 91,
-                    "target_entity": "Captain Kabir Rao (KA-01-MJ-9999)",
-                    "description": "Covert armed transport departing Mundra Port Terminal 3 via Kutch highway under forged military clearance.",
-                    "recommended_action": "Establish armed highway roadblock at Bhuj Toll Gate with ANPR camera tracking.",
-                    "severity": "MAXIMUM"
-                }
-            ]
-        elif case_id == "CASE-004":
-            forecasts = [
-                {
-                    "id": "pred_04_1",
-                    "timeframe": "T + 14 Hours",
-                    "threat_type": "Dead-Drop Consignment Pickup",
-                    "probability": 86,
-                    "target_entity": "Arjun Nair → Anjuna Safehouse",
-                    "description": "Scheduled retrieval of 12 vacuum-sealed synthetic packages at Goa beach coordinates.",
-                    "recommended_action": "Deploy plainclothes anti-narcotics squad with drone infrared surveillance.",
-                    "severity": "CRITICAL"
-                }
-            ]
-        else: # CASE-005
-            forecasts = [
-                {
-                    "id": "pred_05_1",
-                    "timeframe": "T + 10 Hours",
-                    "threat_type": "Airport Courier Flight Arrival",
-                    "probability": 95,
-                    "target_entity": "Fatima Al-Sayed (Flight EK-504)",
-                    "description": "Incoming air passenger carrying 8.5 kg concealed gold bullion paste in checked baggage.",
-                    "recommended_action": "Place passenger on international lookout notice (LOC) and intercept at customs belt.",
-                    "severity": "MAXIMUM"
-                }
-            ]
+            return {
+                "case_id": case_id,
+                "threat_forecasts": [
+                    {
+                        "id": "pred_01",
+                        "timeframe": "T + 12 Hours",
+                        "threat_type": "Offshore Hawala Dispersion",
+                        "probability": 88,
+                        "target_entity": "Devendra Sharma → Tariq Ahmed",
+                        "description": "Predicted wire liquidation of INR 1.2 Crore via dummy jewelers in Zaveri Bazaar.",
+                        "recommended_action": "Freeze Bank Accounts #ACC-111222 and deploy surveillance at Zaveri Bazaar exit alley.",
+                        "severity": "CRITICAL"
+                    }
+                ]
+            }
+
+        # Dynamic graph-based forecast for all real cases
+        persons = [n for n in nodes if n.type == "PERSON"]
+        accounts = [n for n in nodes if n.type == "ACCOUNT"]
+        vehicles = [n for n in nodes if n.type == "VEHICLE"]
+        phones = [n for n in nodes if n.type == "PHONE"]
+        locations = [n for n in nodes if n.type == "LOCATION"]
+
+        forecasts = []
+        top_person = persons[0].label if persons else "Primary Target"
+        sec_person = persons[1].label if len(persons) > 1 else "Syndicate Handler"
+
+        if accounts:
+            target_acc = accounts[0].label
+            forecasts.append({
+                "id": "DYN_PRED_01",
+                "timeframe": "T + 12 Hours",
+                "threat_type": "Hawala Layering & Fund Flight",
+                "probability": 86,
+                "target_entity": f"{top_person} → {target_acc}",
+                "description": f"High risk of rapid fund dispersion from {target_acc} into secondary mule accounts to avoid freezing.",
+                "recommended_action": f"Serve Section 102 CrPC freezing order on {target_acc} with RBI nodal desk immediately.",
+                "severity": "CRITICAL"
+            })
+
+        if phones:
+            target_phone = phones[0].label
+            forecasts.append({
+                "id": "DYN_PRED_02",
+                "timeframe": "T + 24 Hours",
+                "threat_type": "Terminal Burner Evasion",
+                "probability": 78,
+                "target_entity": f"{top_person} ({target_phone})",
+                "description": f"Probability of suspect discarding active SIM/IMEI terminal {target_phone} following initial raids.",
+                "recommended_action": f"Issue immediate tower ping and CDR trap order on MSISDN {target_phone}.",
+                "severity": "HIGH"
+            })
+
+        if vehicles or locations:
+            target_veh = vehicles[0].label if vehicles else "Transport Van"
+            target_loc = locations[0].label if locations else "Transit Node"
+            forecasts.append({
+                "id": "DYN_PRED_03",
+                "timeframe": "T + 48 Hours",
+                "threat_type": "Contraband Dispatch Movement",
+                "probability": 82,
+                "target_entity": f"{target_veh} → {target_loc}",
+                "description": f"Logistical movement detected staging contraband transport towards {target_loc}.",
+                "recommended_action": f"Deploy ANPR automated highway checkpoint intercept on route to {target_loc}.",
+                "severity": "CRITICAL"
+            })
+
+        if not forecasts:
+            forecasts.append({
+                "id": "DYN_PRED_GEN",
+                "timeframe": "T + 24 Hours",
+                "threat_type": "Syndicate Coordination Surge",
+                "probability": 70,
+                "target_entity": top_person,
+                "description": f"Predicted tactical repositioning of key operatives under {top_person}.",
+                "recommended_action": "Maintain high-alert electronic surveillance across known associate endpoints.",
+                "severity": "MEDIUM"
+            })
 
         return {
             "case_id": case_id,
-            "overall_syndicate_threat_score": 88,
-            "threat_trend": "ESCALATING",
-            "active_interception_windows": len(forecasts),
-            "forecasts": forecasts,
-            "tactical_summary": "High urgency: Syndicate is executing active evasive maneuvers and financial layering.",
+            "threat_forecasts": forecasts
         }

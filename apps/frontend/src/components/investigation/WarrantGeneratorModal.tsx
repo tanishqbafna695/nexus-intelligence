@@ -101,19 +101,26 @@ export const WarrantGeneratorModal: React.FC<WarrantGeneratorModalProps> = ({ su
   const handleDownloadDossier = () => {
     const content = `
 ================================================================================
-          JUDICIAL WARRANT & STATUTORY CHARGESHEET APPLICATION
-               SPECIAL COURT FOR ORGANIZED CRIME & PMLA
+     DRAFT JUDICIAL APPLICATION FOR PROSECUTORIAL & LEGAL COUNSEL REVIEW
+                   SPECIAL COURT FOR ORGANIZED CRIME & PMLA
 ================================================================================
+MANDATORY STATUTORY NOTICE:
+This dossier is an automated evidence-synthesis draft produced by TRACE 
+for investigative decision support. It does NOT constitute a binding judicial
+directive, warrant, or finding of guilt. It must be independently reviewed,
+verified, and signed by authorized public prosecutors prior to submission
+before a competent judicial magistrate.
+--------------------------------------------------------------------------------
 DATE: ${new Date().toISOString().split('T')[0]}
-WARRANT TYPE: ${selectedPurposeObj.label.toUpperCase()}
+WARRANT APPLICATION TYPE: ${selectedPurposeObj.label.toUpperCase()}
 
 1. TARGET PARTICULARS:
    - Full Name: ${selectedSuspect}
    - Syndicate Role: ${targetIntel.role}
    - Target Premise / Address: ${targetIntel.location}
-   - Bayesian Culpability Index: ${targetIntel.guiltRating}%
+   - Evidence Support & Corroboration Index: ${targetIntel.guiltRating}%
 
-2. STATUTORY OFFENSE CHARGES:
+2. STATUTORY OFFENSE CHARGES (SUBJECT TO PROSECUTORIAL REVIEW):
 ${targetIntel.sections.map(s => `   • ${s}`).join('\n')}
 
 3. GROUNDS OF BELIEF & FACTUAL PROOFS:
@@ -125,7 +132,7 @@ ${targetIntel.sections.map(s => `   • ${s}`).join('\n')}
    - Cryptographic SHA-256 Hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 5. PRAYER:
-   It is prayed that this Hon'ble Court may graciously issue ${selectedPurposeObj.label}
+   It is prayed that this Hon'ble Court may graciously evaluate ${selectedPurposeObj.label}
    against the target entity to prevent tampering with material evidence.
 ================================================================================
     `;
@@ -134,7 +141,7 @@ ${targetIntel.sections.map(s => `   • ${s}`).join('\n')}
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `WARRANT_${selectedSuspect.replace(/\s+/g, '_')}_${warrantPurpose}.txt`;
+    link.download = `WARRANT_APPLICATION_${selectedSuspect.replace(/\s+/g, '_')}_${warrantPurpose}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -238,18 +245,22 @@ ${targetIntel.sections.map(s => `   • ${s}`).join('\n')}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-400 font-bold">
                   <CheckCircle className="w-4 h-4" />
-                  <span>WARRANT PACKAGE COMPILED & SIGNED</span>
+                  <span>DRAFT APPLICATION PACKAGE COMPILED</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  COURT-READY
+                  DECISION SUPPORT
                 </span>
+              </div>
+
+              <div className="p-2 rounded bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-300 font-mono">
+                ⚖️ <strong>Legal Notice:</strong> Intelligence synthesis draft for investigator review. Requires prosecutorial review and judicial filing.
               </div>
 
               <div className="text-[11px] text-slate-300 space-y-1.5 pt-1 border-t border-emerald-500/20">
                 <div>• <strong className="text-white">Target Entity:</strong> {selectedSuspect} ({targetIntel.role})</div>
-                <div>• <strong className="text-white">Warrant Action:</strong> <span className="text-amber-300 font-bold">{selectedPurposeObj.label}</span></div>
+                <div>• <strong className="text-white">Proposed Action:</strong> <span className="text-amber-300 font-bold">{selectedPurposeObj.label}</span></div>
                 <div>• <strong className="text-white">Applicable Sections:</strong> {targetIntel.sections.join(' | ')}</div>
-                <div>• <strong className="text-white">Bayesian Guilt Index:</strong> <span className="text-emerald-400 font-bold">`{targetIntel.guiltRating}% Culpability Rating`</span></div>
+                <div>• <strong className="text-white">Evidence Support Score:</strong> <span className="text-emerald-400 font-bold">`{targetIntel.guiltRating}% Corroborated Links`</span></div>
                 <div>• <strong className="text-white">Material Grounds:</strong> <span className="text-slate-300">{targetIntel.grounds}</span></div>
                 <div>• <strong className="text-white">Evidence Exhibits:</strong> {targetIntel.exhibitsCount} Indexed Exhibits with SHA-256 Custody Hash</div>
               </div>

@@ -5,14 +5,6 @@ import {
   TrendingUp, Database, FileText
 } from 'lucide-react';
 import { Case } from '../../types';
-import { MagneticButton } from '../ui/MagneticButton';
-import { Sparkles as SparklesEffect } from '../ui/Sparkles';
-import { TextGenerateEffect } from '../ui/TextGenerateEffect';
-import { CardSpotlight } from '../ui/CardSpotlight';
-import { Particles3D } from '../ui/Particles3D';
-import { Globe3D } from '../ui/Globe3D';
-import { CometCard } from '../ui/CometCard';
-import { CardContainer, CardBody, CardItem } from '../ui/CardContainer';
 
 interface LandingPortalProps {
   cases: Case[];
@@ -72,8 +64,7 @@ const CASE_METRICS: Record<string, {
 
 export const LandingPortal: React.FC<LandingPortalProps> = ({ cases, onSelectCase, onEnterWorkspace }) => {
   return (
-    <div className="relative w-full h-full overflow-y-auto bg-[#06070A] text-slate-100 font-sans p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
-      <Particles3D particleColor="#00FFFF" particleCount={150} className="opacity-40" />
+    <div className="w-full h-full overflow-y-auto bg-[#06070A] text-slate-100 font-sans p-4 md:p-8 space-y-8 max-w-7xl mx-auto">
       {/* ── Top Classification Header ────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-cyan-500/20 pb-5">
         <div className="flex items-center gap-3.5">
@@ -107,83 +98,65 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ cases, onSelectCas
           boxShadow: '0 0 50px rgba(0, 210, 255, 0.12), inset 0 1px 0 rgba(6, 182, 212, 0.2)',
         }}
       >
-        <SparklesEffect particleColor="#00D2FF" particleDensity={40} speed={0.6} />
-        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div className="space-y-4 max-w-3xl">
             <div className="flex items-center gap-2 text-cyan-400 font-mono text-xs font-bold tracking-widest uppercase">
               <Sparkles className="w-4 h-4 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
               <span>Next-Generation Criminal Network & Bayesian Forensic Reasoning Platform</span>
             </div>
 
-            <TextGenerateEffect
-              words="Autonomous 3D Spatial Knowledge Graph & Bayesian Culpability Matrix"
-              className="text-2xl md:text-4xl font-black font-mono text-white tracking-tight leading-tight"
-            />
+            <h2 className="text-2xl md:text-4xl font-black font-mono text-white tracking-tight leading-tight">
+              Autonomous 3D Spatial Knowledge Graph & Bayesian Culpability Matrix
+            </h2>
 
             <p className="text-sm md:text-base text-slate-300 font-sans leading-relaxed">
               Multi-modal forensic data ingestion of Call Detail Records (CDRs), First Information Reports (FIRs), SWIFT bank wire ledgers, ANPR vehicle plate scans, and DNA biometric forensic reports. Uncover hidden kingpins, money mule rings, and bridge conspirators in real-time WebGL.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2 relative z-10">
-              <MagneticButton strength={0.4} maxDistance={20}>
+            <div className="flex flex-wrap items-center gap-4 pt-2">
               <button
                 onClick={onEnterWorkspace}
-                className="px-6 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono text-xs font-black transition flex items-center gap-2 shadow-[0_0_30px_rgba(0,210,255,0.5)] transform hover:scale-105 cursor-pointer"
+                className="px-6 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono text-xs font-black transition flex items-center gap-2 shadow-[0_0_30px_rgba(0,210,255,0.5)] transform hover:scale-105"
               >
                 <span>LAUNCH COMMAND WORKSPACE</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-              </MagneticButton>
             </div>
           </div>
 
-          {/* 3D Globe + System Capabilities HUD Grid */}
-          <div className="relative z-10 flex flex-col items-center gap-4 w-full lg:w-auto shrink-0">
-          <div className="w-48 h-48 lg:w-56 lg:h-56">
-            <Globe3D
-              markers={[
-                { lat: 19.076, lng: 72.8777, label: "Mumbai Port", color: "#FF3333" },
-                { lat: 28.6139, lng: 77.209, label: "Delhi Hub", color: "#00FFFF" },
-                { lat: 25.2048, lng: 55.2708, label: "Dubai Route", color: "#00FF41" },
-                { lat: -6.2088, lng: 106.8456, label: "Jakarta Link", color: "#FF00FF" },
-                { lat: 51.5074, lng: -0.1278, label: "London Node", color: "#F59E0B" },
-              ]}
-              radius={1.5}
-            />
-          </div>
+          {/* System Capabilities HUD Grid */}
           <div className="grid grid-cols-2 gap-3 w-full lg:w-96 shrink-0 font-mono text-xs">
-            <CometCard className="p-3.5 space-y-1.5">
+            <div className="p-3.5 rounded-xl border border-white/10 bg-black/60 space-y-1.5 hover:border-cyan-400/40 transition">
               <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1.5">
                 <Cpu className="w-4 h-4 text-cyan-400" /> AI Investigator
               </div>
               <div className="text-cyan-300 font-bold text-xs">SEMANTIC REASONER</div>
               <span className="text-[10px] text-slate-400 block font-sans">Grounded evidence citations</span>
-            </CometCard>
+            </div>
 
-            <CometCard className="p-3.5 space-y-1.5" glareColor="rgba(0, 255, 65, 0.12)">
+            <div className="p-3.5 rounded-xl border border-white/10 bg-black/60 space-y-1.5 hover:border-emerald-400/40 transition">
               <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1.5">
                 <Network className="w-4 h-4 text-emerald-400" /> Dual Canvas
               </div>
               <div className="text-emerald-300 font-bold text-xs">3D WebGL / 2D Cytoscape</div>
               <span className="text-[10px] text-slate-400 block font-sans">Zero fog luminous nodes</span>
-            </CometCard>
+            </div>
 
-            <CometCard className="p-3.5 space-y-1.5" glareColor="rgba(139, 92, 246, 0.12)">
+            <div className="p-3.5 rounded-xl border border-white/10 bg-black/60 space-y-1.5 hover:border-purple-400/40 transition">
               <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1.5">
                 <Globe className="w-4 h-4 text-purple-400" /> Geo Radar
               </div>
               <div className="text-purple-300 font-bold text-xs">DYNAMIC GIS SATELLITE</div>
               <span className="text-[10px] text-slate-400 block font-sans">Real-time GPS cell towers</span>
-            </CometCard>
+            </div>
 
-            <CometCard className="p-3.5 space-y-1.5" glareColor="rgba(239, 68, 68, 0.12)">
+            <div className="p-3.5 rounded-xl border border-white/10 bg-black/60 space-y-1.5 hover:border-red-400/40 transition">
               <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-red-400" /> Bayesian Matrix
+                <Award className="w-4 h-4 text-red-400" /> Priority Matrix
               </div>
-              <div className="text-red-300 font-bold text-xs">DNA & ALIBI PROFILER</div>
-              <span className="text-[10px] text-slate-400 block font-sans">Log-odds guilt calibration</span>
-            </CometCard>
-          </div>
+              <div className="text-red-300 font-bold text-xs">FORENSIC & ALIBI PROFILER</div>
+              <span className="text-[10px] text-slate-400 block font-sans">Calibrated evidence weight & priority scoring</span>
+            </div>
           </div>
         </div>
       </div>
@@ -212,12 +185,10 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ cases, onSelectCas
             };
 
             return (
-              <CardContainer key={c.id} containerClassName="cursor-pointer">
-              <CardSpotlight spotlightColor="rgba(0, 210, 255, 0.08)" className="cursor-pointer">
-              <CardBody>
               <div
+                key={c.id}
                 onClick={() => onSelectCase(c.id)}
-                className="p-6 rounded-2xl border border-white/10 bg-[#0C0F17] hover:border-cyan-400/60 transition flex flex-col justify-between space-y-4 group hover:shadow-[0_0_30px_rgba(0,210,255,0.25)]"
+                className="card-3d p-6 rounded-2xl border border-white/10 bg-[#0C0F17] hover:border-cyan-400/60 transition cursor-pointer flex flex-col justify-between space-y-4 group hover:shadow-[0_0_30px_rgba(0,210,255,0.25)]"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -255,19 +226,14 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ cases, onSelectCas
                   </div>
                 </div>
 
-                <CardItem translateZ={20} className="pt-2 border-t border-white/5">
-                  <div className="flex items-center justify-between font-mono text-xs text-slate-400">
-                    <div className="flex items-center gap-1.5 text-cyan-400 font-bold group-hover:translate-x-1 transition">
-                      <span>OPEN DOSSIER</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </div>
-                    <span className="text-[10px] text-slate-400">ID: {c.id}</span>
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between font-mono text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 text-cyan-400 font-bold group-hover:translate-x-1 transition">
+                    <span>OPEN DOSSIER</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </div>
-                </CardItem>
+                  <span className="text-[10px] text-slate-400">ID: {c.id}</span>
+                </div>
               </div>
-              </CardBody>
-              </CardSpotlight>
-              </CardContainer>
             );
           })}
         </div>

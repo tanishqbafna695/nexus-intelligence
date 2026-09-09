@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Database, Upload, Sparkles as SparklesIcon } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Sparkles, Database, Upload, AlertTriangle, Filter, RefreshCw } from 'lucide-react';
 import { AppShell } from './components/layout/AppShell';
 import { ParticleBackground } from './components/layout/ParticleBackground';
 import { GraphCanvas } from './components/graph/GraphCanvas';
@@ -8,7 +8,6 @@ import { GraphFilterToolbar } from './components/graph/GraphFilterToolbar';
 import { DemoStorylineController } from './components/investigation/DemoStorylineController';
 import { AIInvestigatorPanel } from './components/investigation/AIInvestigatorPanel';
 import { EntityIntelligencePanel } from './components/entity/EntityIntelligencePanel';
-import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
 import { TimelineView } from './components/timeline/TimelineView';
 import { EvidenceViewer } from './components/evidence/EvidenceViewer';
 import { IngestionModal } from './components/ingestion/IngestionModal';
@@ -18,25 +17,18 @@ import { AlertPanel } from './components/investigation/AlertPanel';
 import { CulpritProfilerPanel } from './components/investigation/CulpritProfilerPanel';
 import { LiveStreamFeed } from './components/investigation/LiveStreamFeed';
 import { GeoSpatialMapPanel } from './components/investigation/GeoSpatialMapPanel';
+import { AudioEvidenceTranscriptPanel } from './components/investigation/AudioEvidenceTranscriptPanel';
+import { AudioBriefingModal } from './components/investigation/AudioBriefingModal';
 import { WiretapAudioInspector } from './components/investigation/WiretapAudioInspector';
 import { WarrantGeneratorModal } from './components/investigation/WarrantGeneratorModal';
-import { SuspectInterrogationSimulator } from './components/investigation/SuspectInterrogationSimulator';
-import { ThreatForecastConsole } from './components/investigation/ThreatForecastConsole';
-import { CrossSyndicateFusion } from './components/analytics/CrossSyndicateFusion';
-import { MLModelInspector } from './components/analytics/MLModelInspector';
-import { MissionReplayPlayer } from './components/timeline/MissionReplayPlayer';
-import { AudioBriefingModal } from './components/investigation/AudioBriefingModal';
 import { EvidenceLedger } from './components/evidence/EvidenceLedger';
-import { PoliceSolutionsPanel } from './components/investigation/PoliceSolutionsPanel';
+import { InvestigativePriorityPanel } from './components/investigation/InvestigativePriorityPanel';
 import { LandingPortal } from './components/layout/LandingPortal';
 import { CaseManagerModal } from './components/layout/CaseManagerModal';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
-import { MagneticButton } from './components/ui/MagneticButton';
-import { CardSpotlight } from './components/ui/CardSpotlight';
-import { Sparkles } from './components/ui/Sparkles';
-import { TextGenerateEffect } from './components/ui/TextGenerateEffect';
-import { GraphData, AnalyticsResponse, Node, NodeType, Case, Edge } from './types';
-import { fetchGraph, fetchAnalytics, fetchCommunities, triggerPdfDownload, fetchCases, createCase, deleteCase } from './services/api';
+import { GraphData, Node, NodeType, Case, Edge } from './types';
+import { fetchGraph, fetchCommunities, triggerPdfDownload, fetchCases, createCase, deleteCase, checkBackendHealth, onBackendHealthChange, isDemoModeActive, setDemoModeActive } from './services/api';
+import { ClientIntelligenceEngine } from './services/clientIntelligenceEngine';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 
@@ -52,10 +44,28 @@ import { OFFLINE_CASES, OFFLINE_GRAPHS, OFFLINE_ANALYTICS } from './data/caseDat
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('portal');
-  const [caseId, setCaseId] = useState('CASE-001');
-  const [cases, setCases] = useState<Case[]>(OFFLINE_CASES);
-  const [graphData, setGraphData] = useState<GraphData>(OFFLINE_GRAPHS['CASE-001']);
-  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(OFFLINE_ANALYTICS['CASE-001']);
+  const [caseId, setCaseId] = useState<string>(() => {
+    const expunged = ClientIntelligenceEngine.getExpungedCaseIds();
+    if (!expunged.has('CASE-001')) return 'CASE-001';
+    const saved = ClientIntelligenceEngine.getSavedCases();
+    if (saved.length > 0) return saved[0].id;
+    const remainingDemo = OFFLINE_CASES.filter(c => !expunged.has(c.id));
+    return remainingDemo.length > 0 ? remainingDemo[0].id : 'CASE-001';
+  });
+  const [cases, setCases] = useState<Case[]>(() => {
+    const expunged = ClientIntelligenceEngine.getExpungedCaseIds();
+    const saved = ClientIntelligenceEngine.getSavedCases();
+    const remainingDemo = OFFLINE_CASES.filter(c => !expunged.has(c.id));
+    const merged = [...saved, ...remainingDemo.filter(c => !saved.some(s => s.id === c.id))];
+    return merged.length > 0 ? merged : [];
+  });
+  const [graphData, setGraphData] = useState<GraphData>(() => {
+    const expunged = ClientIntelligenceEngine.getExpungedCaseIds();
+    if (isDemoModeActive() && !expunged.has('CASE-001')) {
+      return OFFLINE_GRAPHS['CASE-001'] || { nodes: [], edges: [] };
+    }
+    return { nodes: [], edges: [] };
+  });
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<string[]>([]);
   const [highlightEdges, setHighlightEdges] = useState<string[]>([]);
@@ -68,8 +78,8 @@ export const App: React.FC = () => {
   const [isIngestionOpen, setIsIngestionOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isWarrantOpen, setIsWarrantOpen] = useState(false);
-  const [isAudioBriefingOpen, setIsAudioBriefingOpen] = useState(false);
   const [isCaseManagerOpen, setIsCaseManagerOpen] = useState(false);
+  const [isBriefingOpen, setIsBriefingOpen] = useState(false);
 
   // Graph Layout & Filtering State
   const [layoutName, setLayoutName] = useState<string>('cose');
@@ -77,17 +87,25 @@ export const App: React.FC = () => {
   const [selectedNodeTypes, setSelectedNodeTypes] = useState<NodeType[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Backend Health & Demo Mode States
+  const [isBackendHealthy, setIsBackendHealthy] = useState<boolean>(true);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(isDemoModeActive());
+
+  useEffect(() => {
+    checkBackendHealth().then(setIsBackendHealthy);
+    const unsub = onBackendHealthChange(setIsBackendHealthy);
+    return unsub;
+  }, []);
+
   // Phase 7 States
   const [leftSubTab, setLeftSubTab] = useState<string>('agent');
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState<number>(600);
   const [maxTimestamp, setMaxTimestamp] = useState<string | null>(null);
   const [showCommunities, setShowCommunities] = useState<boolean>(false);
   const [communities, setCommunities] = useState<Array<{ community_id: number; members: string[] }>>(OFFLINE_ANALYTICS['CASE-001'].communities);
 
   const handleCreateCase = async (name: string, desc: string) => {
     const newCase = await createCase(name, desc);
-    setCases(prev => [newCase, ...prev]);
+    setCases(prev => [newCase, ...prev.filter(c => c.id !== newCase.id)]);
     setCaseId(newCase.id);
     setGraphData({ nodes: [], edges: [] });
     setCurrentTab('workspace');
@@ -97,49 +115,57 @@ export const App: React.FC = () => {
   const handleDeleteCase = async (cid: string) => {
     await deleteCase(cid);
     const updated = cases.filter(c => c.id !== cid);
-    setCases(updated);
-    if (caseId === cid) {
-      const nextCaseId = updated[0]?.id || 'CASE-001';
-      setCaseId(nextCaseId);
-      loadCaseData(nextCaseId);
+    if (updated.length === 0) {
+      const freshCase = await createCase('Operation Alpha', 'Fresh Operational Investigation');
+      setCases([freshCase]);
+      setCaseId(freshCase.id);
+      setGraphData({ nodes: [], edges: [] });
+      setCommunities([]);
+    } else {
+      setCases(updated);
+      if (caseId === cid) {
+        const nextCaseId = updated[0].id;
+        setCaseId(nextCaseId);
+      }
     }
   };
 
   const loadCaseData = async (cid: string = caseId) => {
+    const demoActive = isDemoModeActive();
     try {
       const gData = await fetchGraph(cid);
-      if (gData && Array.isArray(gData.nodes)) {
-        if (gData.nodes.length > 0) {
-          setGraphData(gData);
-        } else if (OFFLINE_GRAPHS[cid]) {
-          setGraphData(OFFLINE_GRAPHS[cid]);
-        } else {
-          setGraphData({ nodes: [], edges: [] });
-        }
-      } else if (OFFLINE_GRAPHS[cid]) {
+      if (gData && Array.isArray(gData.nodes) && gData.nodes.length > 0) {
+        setGraphData(gData);
+      } else if (demoActive && OFFLINE_GRAPHS[cid]) {
+        setGraphData(OFFLINE_GRAPHS[cid]);
+      } else {
+        setGraphData(gData || { nodes: [], edges: [] });
+      }
+    } catch (err) {
+      console.error("Failed to load graph data", err);
+      if (demoActive && OFFLINE_GRAPHS[cid]) {
         setGraphData(OFFLINE_GRAPHS[cid]);
       } else {
         setGraphData({ nodes: [], edges: [] });
       }
-    } catch (err) {
-      console.error("Failed to load graph data", err);
-      setGraphData(OFFLINE_GRAPHS[cid] || { nodes: [], edges: [] });
-    }
-
-    try {
-      const aData = await fetchAnalytics(cid);
-      setAnalytics(aData || OFFLINE_ANALYTICS[cid] || OFFLINE_ANALYTICS['CASE-001']);
-    } catch (err) {
-      console.error("Failed to load analytics, using offline metrics", err);
-      setAnalytics(OFFLINE_ANALYTICS[cid] || OFFLINE_ANALYTICS['CASE-001']);
     }
 
     try {
       const commData = await fetchCommunities(cid);
-      setCommunities(commData || OFFLINE_ANALYTICS[cid]?.communities || OFFLINE_ANALYTICS['CASE-001'].communities);
+      if (commData && Array.isArray(commData)) {
+        setCommunities(commData);
+      } else if (demoActive && OFFLINE_ANALYTICS[cid]?.communities) {
+        setCommunities(OFFLINE_ANALYTICS[cid].communities);
+      } else {
+        setCommunities([]);
+      }
     } catch (err) {
       console.error("Failed to load communities", err);
-      setCommunities(OFFLINE_ANALYTICS[cid]?.communities || OFFLINE_ANALYTICS['CASE-001'].communities);
+      if (demoActive && OFFLINE_ANALYTICS[cid]?.communities) {
+        setCommunities(OFFLINE_ANALYTICS[cid].communities);
+      } else {
+        setCommunities([]);
+      }
     }
 
     try {
@@ -149,7 +175,8 @@ export const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Failed to fetch cases list", err);
-      setCases(OFFLINE_CASES);
+      const expunged = ClientIntelligenceEngine.getExpungedCaseIds();
+      setCases(prev => prev.length > 0 ? prev : OFFLINE_CASES.filter(c => !expunged.has(c.id)));
     }
   };
 
@@ -157,18 +184,6 @@ export const App: React.FC = () => {
     loadCaseData(caseId);
     setMaxTimestamp(null); // Reset timeline filter on case switch
   }, [caseId]);
-
-  // Measure left panel content area height for scroll container
-  useEffect(() => {
-    const measure = () => {
-      if (contentRef.current) {
-        setContentHeight(contentRef.current.clientHeight);
-      }
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [leftSubTab]);
 
   const handleApplyHighlight = (nodes: string[], edges: string[]) => {
     setHighlightNodes(nodes);
@@ -228,22 +243,47 @@ export const App: React.FC = () => {
     });
   }, []);
 
-  // Compute time-filtered activeGraphData for timeline simulation/playback
+  // Compute actively filtered graph data: combines timeline playback, confidence threshold, node types, and search query
   const activeGraphData = useMemo(() => {
-    const filteredEdgesForCanvas = maxTimestamp
+    // 1. Time filter
+    const timeFilteredEdges = maxTimestamp
       ? graphData.edges.filter(e => e.timestamp && new Date(e.timestamp).getTime() <= new Date(maxTimestamp).getTime())
       : graphData.edges;
 
-    const activeNodeIdsFromEdges = new Set(filteredEdgesForCanvas.flatMap(e => [e.source, e.target]));
-    const filteredNodesForCanvas = maxTimestamp
-      ? graphData.nodes.filter(n => activeNodeIdsFromEdges.has(n.id) || (n.created_at && new Date(n.created_at).getTime() <= new Date(maxTimestamp).getTime()))
+    const activeNodeIdsFromTime = new Set(timeFilteredEdges.flatMap(e => [e.source, e.target]));
+    const timeFilteredNodes = maxTimestamp
+      ? graphData.nodes.filter(n => activeNodeIdsFromTime.has(n.id) || (n.created_at && new Date(n.created_at).getTime() <= new Date(maxTimestamp).getTime()))
       : graphData.nodes;
 
+    // 2. Threshold, Type, and Search Query filters
+    const filteredNodes = timeFilteredNodes.filter(n => {
+      if (typeof minConfidence === 'number' && n.confidence < minConfidence) return false;
+      if (selectedNodeTypes.length > 0 && !selectedNodeTypes.includes(n.type as NodeType)) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchLabel = n.label && n.label.toLowerCase().includes(q);
+        const matchId = n.id && n.id.toLowerCase().includes(q);
+        const matchType = n.type && n.type.toLowerCase().includes(q);
+        return matchLabel || matchId || matchType;
+      }
+      return true;
+    });
+
+    const activeNodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredEdges = timeFilteredEdges.filter(e => activeNodeIds.has(e.source) && activeNodeIds.has(e.target));
+
     return {
-      nodes: filteredNodesForCanvas,
-      edges: filteredEdgesForCanvas
+      nodes: filteredNodes,
+      edges: filteredEdges
     };
-  }, [graphData, maxTimestamp]);
+  }, [graphData, maxTimestamp, minConfidence, selectedNodeTypes, searchQuery]);
+
+  // If active filter causes selected node to be hidden, cleanly clear selection
+  useEffect(() => {
+    if (selectedNode && !activeGraphData.nodes.some(n => n.id === selectedNode.id)) {
+      setSelectedNode(null);
+    }
+  }, [activeGraphData, selectedNode]);
 
   return (
     <>
@@ -263,11 +303,73 @@ export const App: React.FC = () => {
       edgeCount={graphData.edges.length}
       onUploadClick={() => setIsIngestionOpen(true)}
       onAuditClick={() => setIsAuditOpen(true)}
+      onBriefingClick={() => setIsBriefingOpen(true)}
       onExportClick={handleExportReport}
       onWarrantClick={() => setIsWarrantOpen(true)}
-      onAudioBriefingClick={() => setIsAudioBriefingOpen(true)}
       onOpenCaseManager={() => setIsCaseManagerOpen(true)}
+      onDeleteActiveCase={handleDeleteCase}
+      runtimeMode={isDemoMode ? 'demo' : isBackendHealthy ? 'live' : 'offline'}
     >
+      {/* Live Engine Status Warning Banner */}
+      {!isBackendHealthy && (
+        <div className="bg-amber-950/90 border-b border-amber-500/40 px-4 py-2 flex items-center justify-between text-xs text-amber-300 font-mono shrink-0 shadow-lg z-50">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
+            <span>
+              <strong>Live TRACE Engine Offline (http://127.0.0.1:8000)</strong> — Running in client sandbox. Outputs are derived from your real uploaded records.
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                const ok = await checkBackendHealth();
+                if (ok) loadCaseData(caseId);
+              }}
+              className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 transition text-[11px]"
+            >
+              Retry Server
+            </button>
+            <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300">
+              <input
+                type="checkbox"
+                checked={isDemoMode}
+                onChange={(e) => {
+                  setDemoModeActive(e.target.checked);
+                  setIsDemoMode(e.target.checked);
+                  loadCaseData(caseId);
+                }}
+                className="rounded border-slate-600 bg-slate-800 text-cyan-500"
+              />
+              <span>Demo Fallback Mode</span>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent Synthetic Demo Data Warning Banner */}
+      {isDemoMode && (
+        <div className="bg-amber-950/80 border-b border-amber-500/50 px-4 py-2 flex items-center justify-between text-xs text-amber-200 font-mono shrink-0 shadow-lg z-50">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 text-[10px]">
+              SYNTHETIC DEMO DATA
+            </span>
+            <span>
+              Synthetic demo mode active. Graphs and intelligence entities are pre-packaged simulations for demonstration purposes only.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setDemoModeActive(false);
+              setIsDemoMode(false);
+              loadCaseData(caseId);
+            }}
+            className="px-2.5 py-1 rounded bg-amber-500/30 hover:bg-amber-500/40 border border-amber-500/50 text-amber-100 transition text-[11px] font-bold"
+          >
+            Switch to Live Case Mode
+          </button>
+        </div>
+      )}
+
       {/* Mission Briefing Landing Portal */}
       {currentTab === 'portal' && (
         <LandingPortal
@@ -301,9 +403,9 @@ export const App: React.FC = () => {
             <div className="col-span-3 h-full flex flex-col gap-2">
               {/* Tab Selector */}
               <div className="flex bg-black/60 p-1 rounded-xl border border-white/5 shrink-0">
-                {['agent', 'path', 'alerts', 'culprits'].map((tab) => (
-                  <MagneticButton key={tab} strength={0.3} maxDistance={8}>
+                {['agent', 'audio', 'wiretap', 'path', 'alerts', 'culprits'].map((tab) => (
                   <button
+                    key={tab}
                     onClick={() => {
                       setLeftSubTab(tab);
                       setHighlightNodes([]);
@@ -316,64 +418,71 @@ export const App: React.FC = () => {
                       color: leftSubTab === tab ? '#06B6D4' : '#64748B',
                     }}
                   >
-                    {tab === 'agent' ? 'Agent' : tab === 'path' ? 'Path' : tab === 'alerts' ? 'Alerts' : 'Culprits'}
+                    {tab === 'agent' ? 'Agent' : tab === 'audio' ? 'Audio' : tab === 'wiretap' ? 'Wiretap' : tab === 'path' ? 'Path' : tab === 'alerts' ? 'Alerts' : 'Culprits'}
                   </button>
-                  </MagneticButton>
                 ))}
               </div>
 
-              <div ref={contentRef} className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden min-h-0">
                 {leftSubTab === 'agent' && (
-                  <div className="flex flex-col gap-3 overflow-y-auto pl-1" style={{ height: contentHeight, scrollbarWidth: 'thin', direction: 'rtl' }}>
-                    <div style={{ direction: 'ltr' }} className="flex flex-col gap-3">
-                    <CardSpotlight>
+                  <div className="h-full flex flex-col min-h-0 overflow-hidden">
                     <AIInvestigatorPanel
                       caseId={caseId}
+                      graphData={activeGraphData}
                       onApplyHighlight={handleApplyHighlight}
                       onViewEvidence={setViewingEvidenceId}
+                      onNavigateToAudio={() => setLeftSubTab('audio')}
                     />
-                    </CardSpotlight>
-                    <CardSpotlight spotlightColor="rgba(16, 185, 129, 0.12)">
-                    <WiretapAudioInspector />
-                    </CardSpotlight>
-                    </div>
                   </div>
                 )}
+                {leftSubTab === 'audio' && (
+                  <div className="h-full flex flex-col min-h-0 overflow-hidden">
+                    <AudioEvidenceTranscriptPanel
+                      caseId={caseId}
+                      graphData={activeGraphData}
+                      onSelectEntity={(entityName) => {
+                        const node = graphData.nodes.find(n => 
+                          n.label.toLowerCase().includes(entityName.toLowerCase()) || 
+                          n.id.toLowerCase().includes(entityName.toLowerCase())
+                        );
+                        if (node) setSelectedNode(node);
+                      }}
+                      onNavigateToInvestigator={() => setLeftSubTab('agent')}
+                    />
+                  </div>
+                )}
+                {leftSubTab === 'wiretap' && (
+                  <WiretapAudioInspector />
+                )}
                 {leftSubTab === 'path' && (
-                  <CardSpotlight spotlightColor="rgba(59, 130, 246, 0.12)">
                   <PathFinderPanel
                     caseId={caseId}
-                    graphData={graphData}
+                    graphData={activeGraphData}
                     onHighlightPath={handleApplyHighlight}
                     onClearHighlight={() => {
                       setHighlightNodes([]);
                       setHighlightEdges([]);
                     }}
                   />
-                  </CardSpotlight>
                 )}
                 {leftSubTab === 'alerts' && (
-                  <ErrorBoundary fallbackTitle="Alert Intelligence Panel">
-                    <AlertPanel
-                      caseId={caseId}
-                      onHighlightPattern={handleApplyHighlight}
-                      onClearHighlight={() => {
-                        setHighlightNodes([]);
-                        setHighlightEdges([]);
-                      }}
-                    />
-                  </ErrorBoundary>
+                  <AlertPanel
+                    caseId={caseId}
+                    onHighlightPattern={handleApplyHighlight}
+                    onClearHighlight={() => {
+                      setHighlightNodes([]);
+                      setHighlightEdges([]);
+                    }}
+                  />
                 )}
                 {leftSubTab === 'culprits' && (
-                  <ErrorBoundary fallbackTitle="Culprit Profiler Panel">
-                    <CulpritProfilerPanel
-                      caseId={caseId}
-                      onFocusNode={(nodeId) => {
-                        const node = graphData.nodes.find(n => n.id === nodeId);
-                        if (node) setSelectedNode(node);
-                      }}
-                    />
-                  </ErrorBoundary>
+                  <CulpritProfilerPanel
+                    caseId={caseId}
+                    onFocusNode={(nodeId) => {
+                      const node = graphData.nodes.find(n => n.id === nodeId);
+                      if (node) setSelectedNode(node);
+                    }}
+                  />
                 )}
               </div>
             </div>
@@ -400,7 +509,7 @@ export const App: React.FC = () => {
                       : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  <SparklesIcon className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3" />
                   <span>3D WebGL</span>
                 </button>
                 <span className="w-px h-4 bg-white/10" />
@@ -416,8 +525,8 @@ export const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Filter Toolbar */}
-              <div className="absolute top-3 right-3 z-10 w-72">
+              {/* Filter Toolbar (Movable & Collapsible) */}
+              <div className="absolute top-3 right-3 z-30 pointer-events-auto">
                 <GraphFilterToolbar
                   minConfidence={minConfidence}
                   onConfidenceChange={setMinConfidence}
@@ -425,6 +534,8 @@ export const App: React.FC = () => {
                   onToggleNodeType={handleToggleNodeType}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
+                  totalNodeCount={graphData.nodes.length}
+                  filteredNodeCount={activeGraphData.nodes.length}
                   onResetFilters={() => {
                     setMinConfidence(0.5);
                     setSelectedNodeTypes([]);
@@ -433,19 +544,17 @@ export const App: React.FC = () => {
                 />
               </div>
 
-              {/* Graph Canvas Component (2D / 3D Switchable) or Empty Case Banner */}
-              <div className="flex-1">
-                {activeGraphData.nodes.length === 0 ? (
-                  <div className="relative h-full flex flex-col items-center justify-center p-8 text-center space-y-4 bg-black/40 border border-white/5 rounded-xl overflow-hidden">
-                    <Sparkles particleColor="#00D2FF" particleDensity={60} speed={0.8} />
-                    <div className="relative z-10 w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+              {/* Graph Canvas Component (2D / 3D Switchable) or Empty / Filtered State */}
+              <div className="flex-1 relative">
+                {graphData.nodes.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4 bg-black/40 border border-white/5 rounded-xl">
+                    <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                       <Database className="w-8 h-8 animate-pulse" />
                     </div>
-                    <div className="relative z-10 space-y-1">
-                      <TextGenerateEffect
-                        words={`Case ${caseId} Dossier Ready For Intelligence Ingestion`}
-                        className="text-base font-bold font-mono text-white uppercase tracking-wider"
-                      />
+                    <div className="space-y-1">
+                      <h3 className="text-base font-bold font-mono text-white uppercase tracking-wider">
+                        Case {caseId} Dossier Ready For Intelligence Ingestion
+                      </h3>
                       <p className="text-xs text-slate-400 font-sans max-w-md">
                         No graph nodes or phone intercepts exist yet for this investigation. Ingest CDR call detail logs, SWIFT bank records, or FIR text files to run the forensic analysis engine.
                       </p>
@@ -456,6 +565,31 @@ export const App: React.FC = () => {
                     >
                       <Upload className="w-4 h-4" />
                       <span>Ingest Investigation Records</span>
+                    </button>
+                  </div>
+                ) : activeGraphData.nodes.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-8 text-center space-y-4 bg-black/50 border border-white/10 rounded-xl backdrop-blur-md">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      <Filter className="w-8 h-8 animate-pulse" />
+                    </div>
+                    <div className="space-y-1.5 text-center">
+                      <h3 className="text-base font-bold font-mono text-white uppercase tracking-wider">
+                        No Entities Match Active Graph Filters
+                      </h3>
+                      <p className="text-xs text-slate-400 font-sans max-w-md">
+                        {graphData.nodes.length} entities are loaded for Case {caseId}, but none match current filter criteria (Confidence ≥ {(minConfidence * 100).toFixed(0)}%{selectedNodeTypes.length > 0 ? `, Types: ${selectedNodeTypes.join(', ')}` : ''}{searchQuery ? `, Search: "${searchQuery}"` : ''}).
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMinConfidence(0.5);
+                        setSelectedNodeTypes([]);
+                        setSearchQuery('');
+                      }}
+                      className="px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono text-xs font-bold transition flex items-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Reset Filters</span>
                     </button>
                   </div>
                 ) : is3DMode ? (
@@ -471,6 +605,7 @@ export const App: React.FC = () => {
                     onExpandNeighborhood={handleExpandNeighborhood}
                     communities={communities}
                     showCommunities={showCommunities}
+                    totalNodeCount={graphData.nodes.length}
                   />
                 ) : (
                   <GraphCanvas
@@ -497,7 +632,7 @@ export const App: React.FC = () => {
             <div className="col-span-3 h-full">
               <EntityIntelligencePanel
                 node={selectedNode}
-                edges={graphData.edges}
+                edges={activeGraphData.edges}
                 onClose={() => setSelectedNode(null)}
                 onExpand={handleExpandNeighborhood}
               />
@@ -506,11 +641,11 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Police Tactical Solutions & Enforcement Tab */}
-      {currentTab === 'police_solutions' && (
+      {/* Priority Assessment & Tactical Solutions Tab */}
+      {(currentTab === 'investigative_priorities' || currentTab === 'police_solutions') && (
         <div className="h-full">
-          <ErrorBoundary fallbackTitle="Police Tactical Solutions Engine Intercept">
-            <PoliceSolutionsPanel
+          <ErrorBoundary fallbackTitle="Investigative Priority Engine Intercept">
+            <InvestigativePriorityPanel
               caseId={caseId}
               onOpenWarrantModal={() => setIsWarrantOpen(true)}
               onOpenIngestionModal={() => setIsIngestionOpen(true)}
@@ -542,7 +677,7 @@ export const App: React.FC = () => {
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              <SparklesIcon className="w-3 h-3" />
+              <Sparkles className="w-3 h-3" />
               <span>3D WebGL</span>
             </button>
             <span className="w-px h-4 bg-white/10" />
@@ -579,20 +714,6 @@ export const App: React.FC = () => {
               onExpandNeighborhood={handleExpandNeighborhood}
             />
           )}
-        </div>
-      )}
-
-      {/* Analytics Dashboard Tab */}
-      {currentTab === 'analytics' && (
-        <div className="h-full">
-          <AnalyticsDashboard
-            analytics={analytics}
-            onSelectNode={(nid) => {
-              const node = graphData.nodes.find((n) => n.id === nid);
-              if (node) setSelectedNode(node);
-              setCurrentTab('workspace');
-            }}
-          />
         </div>
       )}
 
@@ -648,74 +769,6 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Autonomous AI Suspect Interrogation Room Tab */}
-      {currentTab === 'interrogation' && (
-        <div className="h-full">
-          <ErrorBoundary fallbackTitle="AI Interrogation Chamber Intercept">
-            <SuspectInterrogationSimulator
-              caseId={caseId}
-              suspects={graphData.nodes}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* Predictive Threat Forecast & Next-Move Simulation Tab */}
-      {currentTab === 'forecast' && (
-        <div className="h-full">
-          <ErrorBoundary fallbackTitle="Predictive Threat Forecaster Intercept">
-            <ThreatForecastConsole
-              caseId={caseId}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* Multi-Case Cross-Syndicate Umbrella Fusion Tab */}
-      {currentTab === 'fusion' && (
-        <div className="h-full">
-          <ErrorBoundary fallbackTitle="Cross-Syndicate Fusion Matrix Intercept">
-            <CrossSyndicateFusion
-              onSelectCase={(cid) => {
-                setCaseId(cid);
-                setCurrentTab('workspace');
-              }}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* Machine Learning & Prediction Lab Tab */}
-      {currentTab === 'ml_lab' && (
-        <div className="h-full">
-          <ErrorBoundary fallbackTitle="Graph Neural & ML Model Lab Intercept">
-            <MLModelInspector
-              caseId={caseId}
-              onFocusNode={(nid) => {
-                const node = graphData.nodes.find(n => n.id === nid);
-                if (node) setSelectedNode(node);
-                setCurrentTab('workspace');
-              }}
-              onApplyHighlight={handleApplyHighlight}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* 4D Tactical Mission Timeline Replay Tab */}
-      {currentTab === 'replay' && (
-        <div className="h-full">
-          <ErrorBoundary fallbackTitle="Mission Replay Simulator Intercept">
-            <MissionReplayPlayer
-              caseId={caseId}
-              graphData={graphData}
-              onApplyHighlight={handleApplyHighlight}
-              onSelectNode={setSelectedNode}
-            />
-          </ErrorBoundary>
-        </div>
-      )}
-
       {/* Forensic Chain-of-Custody Ledger Tab */}
       {currentTab === 'ledger' && (
         <div className="h-full">
@@ -754,11 +807,12 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Executive Audio Briefing Modal */}
+
+      {/* Voice Briefing Audio Modal */}
       <AudioBriefingModal
         caseId={caseId}
-        isOpen={isAudioBriefingOpen}
-        onClose={() => setIsAudioBriefingOpen(false)}
+        isOpen={isBriefingOpen}
+        onClose={() => setIsBriefingOpen(false)}
       />
 
       {/* Case Management Hub Modal */}

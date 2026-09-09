@@ -112,3 +112,68 @@ class InvestigatorResponse(BaseModel):
     highlight_nodes: List[str]
     highlight_edges: List[str]
     confidence: float
+
+# ---------------------------------------------------------------------------
+# Decision-Support & Evidentiary Pipeline Schemas (TRACE v2.0)
+# ---------------------------------------------------------------------------
+
+class InvestigativePriorityTarget(BaseModel):
+    person_id: str
+    name: str
+    role_hypothesis: str
+    priority_score: float = Field(ge=0.0, le=100.0)
+    investigative_priority_score: Optional[float] = None
+    evidence_support_score: float = Field(ge=0.0, le=100.0)
+    centrality_metrics: Dict[str, float] = Field(default_factory=dict)
+    corroboration_sources: List[str] = Field(default_factory=list)
+    hypotheses: List[str] = Field(default_factory=list)
+    statutory_review_items: List[str] = Field(default_factory=list)
+    suggested_inquiries: List[str] = Field(default_factory=list)
+    actionable_directives: List[str] = Field(default_factory=list)
+
+class InvestigativePriorityResponse(BaseModel):
+    case_id: str
+    runtime_mode: str = "live"
+    status: str
+    summary: str
+    priority_targets: List[InvestigativePriorityTarget] = Field(default_factory=list)
+    network_resilience_hypotheses: List[Dict[str, Any]] = Field(default_factory=list)
+    investigative_directives: List[Dict[str, Any]] = Field(default_factory=list)
+    statutory_disclaimer: str = (
+        "INVESTIGATIVE DECISION SUPPORT ONLY - Not an automated legal determination or proof of guilt. "
+        "All statutory recommendations require independent prosecutorial review."
+    )
+    legal_notice: Optional[str] = (
+        "INVESTIGATIVE DECISION SUPPORT ONLY - Not an automated legal determination or proof of guilt. "
+        "All statutory recommendations require independent prosecutorial consultation."
+    )
+
+
+class AudioTranscriptSegment(BaseModel):
+    segment_id: int
+    start_time_seconds: float
+    end_time_seconds: float
+    speaker: str
+    text: str
+    entities: List[str] = Field(default_factory=list)
+    evidence_id: str
+    is_edited: bool = False
+    edited_by: Optional[str] = None
+
+class AudioTranscriptResponse(BaseModel):
+    case_id: str
+    audio_url: str
+    audio_filename: str
+    duration_seconds: float
+    segments: List[AudioTranscriptSegment] = Field(default_factory=list)
+    sha256_hash: Optional[str] = None
+
+class MLModelEvaluationResponse(BaseModel):
+    case_id: str
+    status: str
+    document_classification_metrics: Dict[str, Any] = Field(default_factory=dict)
+    entity_extraction_metrics: Dict[str, Any] = Field(default_factory=dict)
+    graph_modularity_score: float = 0.0
+    link_prediction_metrics: Dict[str, Any] = Field(default_factory=dict)
+    evaluation_notes: str = ""
+

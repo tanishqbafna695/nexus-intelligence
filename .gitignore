@@ -12,7 +12,11 @@
 *.db-shm
 .system_generated/
 
-# Python
+# Testing & IDE Caches
+.pytest_cache/
+.agents/
+.coverage
+htmlcov/
 __pycache__/
 *.py[cod]
 *.pyo

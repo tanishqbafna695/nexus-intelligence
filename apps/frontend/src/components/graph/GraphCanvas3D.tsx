@@ -16,6 +16,7 @@ interface GraphCanvas3DProps {
   onExpandNeighborhood?: (nodeId: string) => void;
   communities?: Array<{ community_id: number; members: string[] }>;
   showCommunities?: boolean;
+  totalNodeCount?: number;
 }
 
 // ── Crisp Cyber-Tactical Palette ─────────────────────────────────────────────
@@ -117,6 +118,10 @@ export const GraphCanvas3D: React.FC<GraphCanvas3DProps> = ({
   selectedNodeTypes = [],
   searchQuery = '',
   onSelectNode,
+  onExpandNeighborhood,
+  communities = [],
+  showCommunities = false,
+  totalNodeCount,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -592,18 +597,20 @@ export const GraphCanvas3D: React.FC<GraphCanvas3DProps> = ({
       <div ref={mountRef} className="w-full h-full" style={{ background: '#06070A' }} />
 
       {/* Top Left HUD Telemetry Badge */}
-      <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none font-mono">
+      <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none font-mono z-10">
         <div className="bg-black/85 backdrop-blur-md border border-cyan-500/30 rounded-lg px-2.5 py-1.5 flex items-center gap-2 text-xs">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
           <span className="text-cyan-300 font-bold">3D SPATIAL KNOWLEDGE GRAPH</span>
           <span className="text-slate-500">|</span>
-          <span className="text-slate-300">{data.nodes.length} nodes</span>
+          <span className="text-slate-300 font-mono">
+            {data.nodes.length}{typeof totalNodeCount === 'number' && totalNodeCount !== data.nodes.length ? ` / ${totalNodeCount}` : ''} nodes
+          </span>
           <span className="text-emerald-400 font-bold">{fps} fps</span>
         </div>
       </div>
 
-      {/* Top Right Tactical Camera Controls */}
-      <div className="absolute top-16 right-3 flex flex-col gap-1.5 z-20">
+      {/* Tactical Camera Controls - Bottom Right (above legend, safely separated from filter panel) */}
+      <div className="absolute bottom-16 right-3 flex flex-col gap-1.5 z-20">
         <div className="bg-black/85 backdrop-blur-md border border-white/10 rounded-xl p-1.5 flex flex-col gap-1 shadow-2xl font-mono text-xs">
           <button
             onClick={() => handleZoom(0.85)}

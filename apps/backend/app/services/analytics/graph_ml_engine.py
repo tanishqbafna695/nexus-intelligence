@@ -136,7 +136,7 @@ class GraphMLEngine:
         # Filter subgraph to financial / transfer / associated relations
         financial_edges = [
             (u, v, d) for u, v, d in self._nx_graph.edges(data=True)
-            if any(t in d.get("type", "").upper() for t in ["TRANSFER", "PAID", "FINANCIAL", "CALL", "ASSOCIATED", "MEETING"])
+            if any(t in d.get("type", "").upper() for t in ["TRANSFER", "TRANSACTION", "TX", "WIRE", "PAID", "FINANCIAL", "CALL", "ASSOCIATED", "MEETING"])
         ]
         
         sub_g = nx.DiGraph()

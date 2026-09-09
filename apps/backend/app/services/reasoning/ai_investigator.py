@@ -53,7 +53,16 @@ class AIInvestigatorEngine:
                 if matched_node:
                     return self._handle_suspect_dossier_query(matched_node, question)
 
-        # ── 2. Check for Specific Person Names in Question ──
+        # ── 2. Check for Account / Financial Flow queries ──
+        account_nodes = [n for n in all_data.nodes if n.type == "ACCOUNT"]
+        if any(w in q_lower for w in ["account", "financial", "transaction", "transfer", "hawala", "wallet", "wire"]):
+            for acc in account_nodes:
+                if acc.label.lower() in q_lower or acc.id.lower() in q_lower:
+                    return self._handle_account_flow_query(acc)
+            if account_nodes:
+                return self._handle_account_flow_query(account_nodes[0])
+
+        # ── 3. Check for Specific Person Names in Question ──
         person_nodes = [n for n in all_data.nodes if n.type == "PERSON"]
         mentioned_persons = [p for p in person_nodes if p.label.lower() in q_lower or any(part in q_lower for part in p.label.lower().split() if len(part) > 3)]
 
@@ -63,13 +72,13 @@ class AIInvestigatorEngine:
         if len(mentioned_persons) == 1:
             return self._handle_suspect_dossier_query(mentioned_persons[0], question)
 
-        # ── 3. Specific Location Query Matching ─────────────────────────────────
+        # ── 4. Specific Location Query Matching ─────────────────────────────────
         location_nodes = [n for n in all_data.nodes if n.type == "LOCATION"]
         for loc in location_nodes:
             if loc.label.lower() in q_lower or any(part in q_lower for part in loc.label.lower().split() if len(part) > 4):
                 return self._handle_location_activity_query(loc)
 
-        # ── 4. General Smart Answering Fallback ────────────────────────────────
+        # ── 5. General Smart Answering Fallback ────────────────────────────────
         return self._handle_general_contextual_query(question, all_data)
 
     def _handle_suspect_dossier_query(self, suspect_node: Node, question: str) -> InvestigatorResponse:
@@ -309,6 +318,57 @@ class AIInvestigatorEngine:
             confidence=0.93
         )
 
+    def _handle_account_flow_query(self, account_node: Node) -> InvestigatorResponse:
+        a_id = account_node.id
+        neighbors_graph = self.repo.get_neighbors(a_id, depth=1)
+        incoming = [e for e in neighbors_graph.edges if e.target == a_id]
+        outgoing = [e for e in neighbors_graph.edges if e.source == a_id]
+
+        inc_desc = []
+        for e in incoming:
+            src_node = self.repo.get_node(e.source)
+            src_name = src_node.label if src_node else e.source
+            ev = f" ({e.evidence})" if e.evidence else ""
+            inc_desc.append(f"- **Deposit / Inflow** from **{src_name}** via `{e.type}`{ev}")
+
+        out_desc = []
+        for e in outgoing:
+            tgt_node = self.repo.get_node(e.target)
+            tgt_name = tgt_node.label if tgt_node else e.target
+            ev = f" ({e.evidence})" if e.evidence else ""
+            out_desc.append(f"- **Transfer / Outflow** to **{tgt_name}** via `{e.type}`{ev}")
+
+        evidence_docs = list(set([e.source_document for e in neighbors_graph.edges if e.source_document]))
+        highlight_nodes = [n.id for n in neighbors_graph.nodes]
+        highlight_edges = [e.id for e in neighbors_graph.edges if e.id]
+
+        lines = [
+            f"### Financial Flow & Account Intelligence: **{account_node.label}**",
+            f"Entity Type: `{account_node.type}` | Bank/Vault: {account_node.attributes.get('bank', account_node.attributes.get('currency', 'Commercial Vault'))}",
+            f"\n**Incoming Capital Flows** ({len(incoming)} transactions):"
+        ]
+        if inc_desc:
+            lines.extend(inc_desc)
+        else:
+            lines.append("- No direct inbound transactions recorded.")
+
+        lines.append(f"\n**Disbursements & Outgoing Transfers** ({len(outgoing)} transactions):")
+        if out_desc:
+            lines.extend(out_desc)
+        else:
+            lines.append("- No direct outbound transactions recorded.")
+
+        answer = "\n".join(lines)
+        return InvestigatorResponse(
+            answer=answer,
+            query={"intent": "financial_flow", "account": account_node.label},
+            results=[{"id": a_id, "label": account_node.label, "incoming": len(incoming), "outgoing": len(outgoing)}],
+            evidence=evidence_docs,
+            highlight_nodes=highlight_nodes,
+            highlight_edges=highlight_edges,
+            confidence=0.95
+        )
+
     def _handle_general_contextual_query(self, question: str, all_data: GraphData) -> InvestigatorResponse:
         """Answers general unstructured questions by looking up matching keywords in entity names/remarks."""
         matched_nodes = []
@@ -345,13 +405,23 @@ class AIInvestigatorEngine:
 
         n_count = len(all_data.nodes)
         e_count = len(all_data.edges)
+        persons = [n.label for n in all_data.nodes if n.type == "PERSON"]
+        locs = [n.label for n in all_data.nodes if n.type == "LOCATION"]
+        accs = [n.label for n in all_data.nodes if n.type == "ACCOUNT"]
+
+        person_str = ", ".join([f"*{p}*" for p in persons[:4]]) if persons else "*None identified*"
+        sample_q1 = f"How is {persons[0]} connected to {persons[1]}?" if len(persons) >= 2 else "Who are the most connected key players?"
+        sample_q2 = f"What activity is centered around {locs[0]}?" if locs else "Which entity acts as the primary bridge?"
+        sample_q3 = f"What financial transactions route through {accs[0]}?" if accs else "What threat anomalies are detected?"
+
         answer = (
             f"The case investigation graph currently contains **{n_count}** resolved entities and **{e_count}** relations.\n\n"
-            f"**Suggested queries**:\n"
-            f"- Ask about specific suspects: *Victor Vance*, *Devendra Sharma*, *Tariq Ahmed*, *Ramesh Kumar*\n"
-            f"- Trace connections between two entities: *How is Victor Vance connected to Devendra Sharma?*\n"
-            f"- Inquire about locations: *Warehouse 17, Nhava Sheva*\n"
-            f"- Request structural bridge entities or key player centrality rankings."
+            f"**Identified Suspects & Persons**: {person_str}\n\n"
+            f"**Suggested queries based on active case graph**:\n"
+            f"- {sample_q1}\n"
+            f"- Who are the most connected key players?\n"
+            f"- {sample_q2}\n"
+            f"- {sample_q3}"
         )
         return InvestigatorResponse(
             answer=answer,
@@ -362,3 +432,81 @@ class AIInvestigatorEngine:
             highlight_edges=[e.id for e in all_data.edges[:5] if e.id],
             confidence=0.85
         )
+
+    def get_suggested_queries(self) -> List[Dict[str, str]]:
+        """
+        Dynamically analyzes the active graph topology and entity attributes to synthesize
+        investigative inquiries tailored to the specific case.
+        """
+        all_data = self.repo.get_all()
+        nodes = all_data.nodes
+        edges = all_data.edges
+
+        if not nodes:
+            return [
+                {"category": "STATUS", "question": "What intelligence files are required to construct this case graph?"},
+                {"category": "INGESTION", "question": "What is the current status of case ingestion?"}
+            ]
+
+        persons = [n for n in nodes if n.type == "PERSON"]
+        accounts = [n for n in nodes if n.type == "ACCOUNT"]
+        locations = [n for n in nodes if n.type == "LOCATION"]
+        vehicles = [n for n in nodes if n.type == "VEHICLE"]
+        phones = [n for n in nodes if n.type == "PHONE"]
+
+        queries: List[Dict[str, str]] = []
+
+        # 1. Connection between primary suspects
+        if len(persons) >= 2:
+            queries.append({
+                "category": "CONNECTION",
+                "question": f"How is {persons[0].label} connected to {persons[1].label}?"
+            })
+        elif len(persons) == 1:
+            queries.append({
+                "category": "PROFILE",
+                "question": f"What is the network profile and alibi for {persons[0].label}?"
+            })
+
+        # 2. Key Players / Centrality
+        queries.append({
+            "category": "KEY_PLAYERS",
+            "question": "Who are the most connected key players in this network?"
+        })
+
+        # 3. Financial Flows or Physical Logistics
+        if accounts:
+            queries.append({
+                "category": "FINANCIAL",
+                "question": f"What financial transactions route through {accounts[0].label}?"
+            })
+        elif locations:
+            queries.append({
+                "category": "LOCATION",
+                "question": f"What operational activity is centered around {locations[0].label}?"
+            })
+        elif vehicles:
+            queries.append({
+                "category": "SURVEILLANCE",
+                "question": f"What travel logs or movements involve {vehicles[0].label}?"
+            })
+
+        # 4. Critical Network Bridges / Articulation Points
+        queries.append({
+            "category": "BRIDGE",
+            "question": "Which person or entity connects the major network clusters?"
+        })
+
+        # 5. Threats / Anomalies / Burner SIMs
+        if phones or any(n.type == "PHONE" for n in nodes):
+            queries.append({
+                "category": "ANOMALIES",
+                "question": "What burner phones or communication anomalies exist in this network?"
+            })
+        else:
+            queries.append({
+                "category": "ALERTS",
+                "question": "What critical threat alerts and operational vulnerabilities have been detected?"
+            })
+
+        return queries

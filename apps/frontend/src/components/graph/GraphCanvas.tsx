@@ -88,25 +88,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       })),
     ];
 
-    // Assign concentric importance levels: PERSON at center, DOCUMENT/VEHICLE at periphery
-    const TYPE_IMPORTANCE: Record<string, number> = {
-      PERSON: 10,
-      ORGANIZATION: 8,
-      ACCOUNT: 6,
-      LOCATION: 5,
-      PHONE: 4,
-      TRANSACTION: 3,
-      EVENT: 2,
-      VEHICLE: 2,
-      DOCUMENT: 1,
-    };
-
-    elements.forEach((el: any) => {
-      if ('rawNode' in el.data) {
-        el.data.importance = TYPE_IMPORTANCE[el.data.type] ?? 3;
-      }
-    });
-
     const cy = cytoscape({
       container: containerRef.current,
       elements,
@@ -118,19 +99,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
             'label': 'data(label)',
             'color': '#FFFFFF',
             'font-family': 'monospace',
-            'font-size': '9px',
+            'font-size': '11px',
             'font-weight': 'bold',
             'text-valign': 'bottom',
-            'text-margin-y': 10,
+            'text-margin-y': 6,
             'text-background-color': 'rgba(6, 9, 15, 0.95)',
             'text-background-opacity': 0.95,
-            'text-background-padding': '4px 6px',
+            'text-background-padding': '3px',
             'text-background-shape': 'roundrectangle',
             'text-border-color': 'data(color)',
             'text-border-width': 1,
             'text-border-opacity': 0.7,
-            'width': 22,
-            'height': 22,
+            'width': 34,
+            'height': 34,
             'border-width': 2,
             'border-color': '#FFFFFF',
             'border-opacity': 0.6,
@@ -141,39 +122,36 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           style: {
             'border-width': 4,
             'border-color': '#00FF9D',
-            'width': 34,
-            'height': 34,
+            'width': 42,
+            'height': 42,
           } as any,
         },
         {
           selector: 'edge',
           style: {
-            'width': 1.2,
-            'line-color': 'rgba(0, 210, 255, 0.25)',
-            'line-opacity': 0.6,
+            'width': 2,
+            'line-color': '#00D2FF',
+            'line-opacity': 0.5,
             'curve-style': 'bezier',
-            'curve-style-bezier-rotate': true,
-            'control-point-step-size': 60,
             'target-arrow-shape': 'triangle',
-            'target-arrow-color': 'rgba(0, 210, 255, 0.35)',
-            'arrow-scale': 0.8,
-            'label': '',
-            'font-size': '7px',
+            'target-arrow-color': '#00D2FF',
+            'arrow-scale': 1.2,
+            'label': 'data(type)',
+            'font-size': '8px',
             'font-family': 'monospace',
-            'color': 'rgba(148, 163, 184, 0.5)',
-            'text-background-color': 'rgba(6, 7, 10, 0.9)',
-            'text-background-opacity': 0.9,
+            'color': '#94A3B8',
+            'text-background-color': '#06070A',
+            'text-background-opacity': 0.85,
             'text-background-padding': '2px',
-            'text-rotation': 'autorotate',
           } as any,
         },
         {
           selector: '.highlighted-node',
           style: {
-          'border-color': '#00FF9D',
-          'border-width': 3,
-          'width': 32,
-          'height': 32,
+            'border-color': '#00FF9D',
+            'border-width': 4,
+            'width': 40,
+            'height': 40,
           } as any,
         },
         {
@@ -181,22 +159,17 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
           style: {
             'line-color': '#00FF9D',
             'target-arrow-color': '#00FF9D',
-            'width': 2.5,
-            'line-opacity': 0.9,
-            'label': 'data(type)',
+            'width': 3.5,
+            'line-opacity': 1,
           } as any,
         },
       ],
       layout: {
-        name: layoutName === '3d' ? 'concentric' : layoutName,
+        name: layoutName === '3d' ? 'cose' : layoutName,
         animate: true,
-        animationDuration: 600,
-        concentric: (node: any) => node.data('importance') ?? 3,
-        levelWidth: () => 1,
-        minNodeSpacing: 50,
-        padding: 80,
-        nodeDimensionsIncludeLabels: true,
-        avoidOverlap: true,
+        animationDuration: 500,
+        nodeRepulsion: 7000,
+        idealEdgeLength: 85,
       } as any,
     });
 

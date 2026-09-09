@@ -16,23 +16,26 @@ class CaseReportGenerator:
         analytics = analytics_engine.run_full_analytics()
         graph = repo.get_all()
 
+        case_dict = {
+            "id": case.id,
+            "name": case.name,
+            "description": case.description,
+            "created_at": case.created_at,
+            "document_ids": case.document_ids,
+            "total_nodes": len(graph.nodes),
+            "total_edges": len(graph.edges)
+        }
+
         return {
-            "case_info": {
-                "id": case.id,
-                "name": case.name,
-                "description": case.description,
-                "created_at": case.created_at,
-                "document_ids": case.document_ids,
-                "total_nodes": len(graph.nodes),
-                "total_edges": len(graph.edges)
-            },
+            "case": case_dict,
+            "case_info": case_dict,
             "graph": {
-                "nodes": [n.dict() for n in graph.nodes],
-                "edges": [e.dict() for e in graph.edges]
+                "nodes": [n.model_dump() if hasattr(n, "model_dump") else n.dict() for n in graph.nodes],
+                "edges": [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in graph.edges]
             },
             "analytics": {
                 "top_key_players": analytics.top_key_players,
-                "communities": [c.dict() for c in analytics.communities]
+                "communities": [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in analytics.communities]
             }
         }
 

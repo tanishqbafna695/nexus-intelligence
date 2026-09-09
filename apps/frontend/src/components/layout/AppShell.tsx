@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Network, LayoutDashboard, BarChart3, Clock, Upload, Download,
-  ShieldCheck, Zap, Shield, Navigation, FileCheck, ShieldAlert,
-  Mic, TrendingUp, Share2, Volume2, PlayCircle, FileText, Lock, Cpu,
-  Siren, FolderGit2
+  Network, LayoutDashboard, Clock, Upload, Download,
+  ShieldCheck, Shield, Navigation, FileCheck, ShieldAlert,
+  Lock, Siren, FolderGit2, Trash2, Scale, ChevronLeft, ChevronRight, Volume2
 } from 'lucide-react';
 import { Case } from '../../types';
-import { MagneticButton } from '../ui/MagneticButton';
-import { MovingBorder } from '../ui/MovingBorder';
-import { FloatingLogo3D } from '../ui/FloatingLogo3D';
 
 interface AppShellProps {
   currentTab: string;
@@ -20,40 +16,77 @@ interface AppShellProps {
   edgeCount: number;
   onUploadClick: () => void;
   onAuditClick: () => void;
+  onBriefingClick?: () => void;
   onExportClick: () => void;
   onWarrantClick?: () => void;
-  onAudioBriefingClick?: () => void;
   onOpenCaseManager?: () => void;
+  onDeleteActiveCase?: (caseId: string) => void;
+  runtimeMode?: 'live' | 'demo' | 'offline';
   children: React.ReactNode;
 }
 
 export const AppShell: React.FC<AppShellProps> = ({
   currentTab, onTabChange, cases, currentCaseId, onCaseChange,
-  nodeCount, edgeCount, onUploadClick, onAuditClick, onExportClick, onWarrantClick, onAudioBriefingClick, onOpenCaseManager, children,
+  nodeCount, edgeCount, onUploadClick, onAuditClick, onBriefingClick, onExportClick, onWarrantClick,
+  onOpenCaseManager, onDeleteActiveCase, runtimeMode = 'live', children,
 }) => {
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-  const navContainerRef = React.useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+
+  const checkScroll = useCallback(() => {
+    if (!navContainerRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = navContainerRef.current;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = navContainerRef.current;
+    if (!el) return;
+
+    el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll);
+
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [checkScroll]);
+
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (!navContainerRef.current) return;
+    const activeBtn = navContainerRef.current.querySelector(`[data-tab-id="${currentTab}"]`) as HTMLElement;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentTab]);
 
   const handleNavWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (navContainerRef.current) {
       navContainerRef.current.scrollLeft += e.deltaY;
+      checkScroll();
+    }
+  };
+
+  const scrollNav = (direction: 'left' | 'right') => {
+    if (navContainerRef.current) {
+      const offset = direction === 'left' ? -220 : 220;
+      navContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
     }
   };
 
   const tabs = [
-    { id: 'portal',            label: 'Mission Portal',        icon: ShieldAlert },
-    { id: 'workspace',         label: 'Case Workspace',        icon: LayoutDashboard },
-    { id: 'police_solutions',  label: 'Police Solutions',      icon: Siren },
-    { id: 'ml_lab',            label: 'ML Model Lab',          icon: Cpu },
-    { id: 'replay',            label: '4D Replay',             icon: PlayCircle },
-    { id: 'interrogation',     label: 'AI Interrogation',      icon: Mic },
-    { id: 'forecast',          label: 'Threat Forecast',       icon: TrendingUp },
-    { id: 'fusion',            label: 'Cross-Cartel Fusion',   icon: Share2 },
-    { id: 'ledger',            label: 'Forensic Ledger',       icon: Lock },
-    { id: 'network',           label: 'Network Canvas',        icon: Network },
-    { id: 'analytics',         label: 'Analytics',             icon: BarChart3 },
-    { id: 'timeline',          label: 'Timeline',              icon: Clock },
-    { id: 'geospatial',        label: 'Geo Radar',             icon: Navigation },
+    { id: 'portal',                   label: 'Mission Portal',        icon: ShieldAlert },
+    { id: 'workspace',                label: 'Case Workspace',        icon: LayoutDashboard },
+    { id: 'investigative_priorities', label: 'Priority Assessment',   icon: Scale },
+    { id: 'ledger',                   label: 'Forensic Ledger',       icon: Lock },
+    { id: 'network',                  label: 'Network Canvas',        icon: Network },
+    { id: 'timeline',                 label: 'Timeline',              icon: Clock },
+    { id: 'geospatial',               label: 'Geo Radar',             icon: Navigation },
   ];
 
   return (
@@ -73,24 +106,22 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* ── Brand + Case Selector ── */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* 3D Logo Badge with Moving Border + Floating 3D */}
-            <FloatingLogo3D intensity={20} className="cursor-pointer">
-            <MovingBorder borderRadius="0.5rem" duration={2000} className="w-[52px] h-[36px]">
-              <div
-                className="flex items-center justify-center w-full h-full text-xs font-black font-mono tracking-wider select-none cursor-default"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: '0.1em',
-                  color: '#00FFFF',
-                  background: 'linear-gradient(135deg, rgba(0,255,255,0.15) 0%, rgba(0,255,65,0.08) 100%)',
-                  textShadow: '0 0 10px rgba(0,255,255,0.5)',
-                }}
-              >
-                TRACE
-              </div>
-            </MovingBorder>
-            </FloatingLogo3D>
+            {/* 3D Logo Badge */}
+            <div
+              className="float-3d btn-3d flex items-center justify-center rounded-lg text-xs font-black font-mono tracking-wider select-none cursor-default"
+              style={{
+                width: 52, height: 36,
+                background: 'linear-gradient(135deg, rgba(6,182,212,0.2) 0%, rgba(16,185,129,0.1) 100%)',
+                border: '1px solid rgba(6,182,212,0.4)',
+                color: '#06B6D4',
+                boxShadow: '0 0 20px rgba(6,182,212,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: '0.1em'
+              }}
+            >
+              TRACE
+            </div>
 
             <div>
               <div className="flex items-center gap-2">
@@ -116,10 +147,39 @@ export const AppShell: React.FC<AppShellProps> = ({
                     <FolderGit2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <span className="pulse-ring text-[9px] font-mono px-1.5 py-0.5 rounded-sm font-bold tracking-wider"
-                  style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', border: '1px solid rgba(16,185,129,0.3)' }}>
-                  LIVE
-                </span>
+                {onDeleteActiveCase && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Permanently expunge and delete case ${currentCaseId}?`)) {
+                        onDeleteActiveCase(currentCaseId);
+                      }
+                    }}
+                    title={`Permanently delete case ${currentCaseId}`}
+                    className="p-1 rounded bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/40 text-slate-400 hover:text-rose-400 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {/* Authoritative Runtime Mode Badge */}
+                {runtimeMode === 'live' ? (
+                  <span className="pulse-ring text-[9px] font-mono px-1.5 py-0.5 rounded-sm font-bold tracking-wider"
+                    style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', border: '1px solid rgba(16,185,129,0.3)' }}
+                    title="Live Backend Connected with SQLite Persistence">
+                    LIVE
+                  </span>
+                ) : runtimeMode === 'demo' ? (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm font-bold tracking-wider"
+                    style={{ background: 'rgba(245,158,11,0.15)', color: '#F59E0B', border: '1px solid rgba(245,158,11,0.3)' }}
+                    title="Demo Storyline Mode - Static Evidence Sets">
+                    DEMO MODE
+                  </span>
+                ) : (
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm font-bold tracking-wider"
+                    style={{ background: 'rgba(100,116,139,0.2)', color: '#94A3B8', border: '1px solid rgba(100,116,139,0.3)' }}
+                    title="Offline Fallback Mode">
+                    OFFLINE
+                  </span>
+                )}
               </div>
               <div className="flex gap-2 text-[10px] font-mono mt-0.5 text-slate-500">
                 <span><span className="text-emerald-400 font-bold">{nodeCount}</span> nodes</span>
@@ -129,81 +189,98 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          {/* ── Scrollable 3D Navigation Tabs ── */}
-          <div
-            ref={navContainerRef}
-            onWheel={handleNavWheel}
-            className="flex-1 min-w-0 overflow-x-auto scrollbar-cyan mx-2 py-1 flex items-center"
-            style={{ scrollBehavior: 'smooth' }}
-          >
-            <nav
-              className="flex items-center gap-1 p-1 rounded-xl shrink-0 flex-nowrap"
-              style={{
-                background: 'rgba(6,7,10,0.85)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-              }}
-            >
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                const active = currentTab === tab.id;
-                const hovered = hoveredTab === tab.id;
-                return (
-                  <MagneticButton key={tab.id} strength={0.2} maxDistance={10}>
-                  <button
-                    onClick={() => onTabChange(tab.id)}
-                    onMouseEnter={() => setHoveredTab(tab.id)}
-                    onMouseLeave={() => setHoveredTab(null)}
-                    className="btn-3d relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all duration-200 shrink-0 whitespace-nowrap"
-                    style={{
-                      background: active
-                        ? 'linear-gradient(135deg, rgba(6,182,212,0.25) 0%, rgba(6,182,212,0.1) 100%)'
-                        : hovered ? 'rgba(255,255,255,0.05)' : 'transparent',
-                      color: active ? '#06B6D4' : hovered ? '#94A3B8' : '#64748B',
-                      border: active ? '1px solid rgba(6,182,212,0.4)' : '1px solid transparent',
-                      boxShadow: active ? '0 0 16px rgba(6,182,212,0.2), inset 0 1px 0 rgba(6,182,212,0.2)' : 'none',
-                      fontWeight: active ? '700' : '500',
-                      letterSpacing: active ? '0.04em' : '0',
-                    }}
-                  >
-                    {active && (
-                      <span
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
-                        style={{ background: '#06B6D4', boxShadow: '0 0 8px #06B6D4' }}
-                      />
-                    )}
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                  </MagneticButton>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* ── Action Buttons ── */}
-          <div className="flex items-center gap-2 shrink-0">
-            {onAudioBriefingClick && (
-              <MagneticButton strength={0.3} maxDistance={15}>
+          {/* ── Scrollable 3D Navigation Tabs with Left/Right Controls ── */}
+          <div className="flex-1 min-w-0 mx-2 flex items-center relative">
+            {canScrollLeft && (
               <button
-                onClick={onAudioBriefingClick}
-                className="btn-3d flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg transition-all"
-                style={{
-                  background: 'rgba(6,182,212,0.12)',
-                  border: '1px solid rgba(6,182,212,0.4)',
-                  color: '#06B6D4',
-                  boxShadow: '0 0 12px rgba(6,182,212,0.2)',
-                }}
-                title="Synthesize Executive Mission Voice Briefing"
+                onClick={() => scrollNav('left')}
+                className="absolute left-0 z-20 p-1 rounded-md bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 shadow-lg transition"
+                title="Scroll navigation left"
               >
-                <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-                <span>Voice Briefing</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              </MagneticButton>
             )}
 
+            <div
+              ref={navContainerRef}
+              onWheel={handleNavWheel}
+              className="w-full overflow-x-auto scrollbar-none py-1 flex items-center scroll-smooth px-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <nav
+                className="flex items-center gap-1 p-1 rounded-xl shrink-0 flex-nowrap"
+                style={{
+                  background: 'rgba(6,7,10,0.85)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                }}
+              >
+                {tabs.map(tab => {
+                  const Icon = tab.icon;
+                  const active = currentTab === tab.id;
+                  const hovered = hoveredTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      data-tab-id={tab.id}
+                      onClick={() => onTabChange(tab.id)}
+                      onMouseEnter={() => setHoveredTab(tab.id)}
+                      onMouseLeave={() => setHoveredTab(null)}
+                      className="btn-3d relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition-all duration-200 shrink-0 whitespace-nowrap"
+                      style={{
+                        background: active
+                          ? 'linear-gradient(135deg, rgba(6,182,212,0.25) 0%, rgba(6,182,212,0.1) 100%)'
+                          : hovered ? 'rgba(255,255,255,0.05)' : 'transparent',
+                        color: active ? '#06B6D4' : hovered ? '#94A3B8' : '#64748B',
+                        border: active ? '1px solid rgba(6,182,212,0.4)' : '1px solid transparent',
+                        boxShadow: active ? '0 0 16px rgba(6,182,212,0.2), inset 0 1px 0 rgba(6,182,212,0.2)' : 'none',
+                        fontWeight: active ? '700' : '500',
+                        letterSpacing: active ? '0.04em' : '0',
+                      }}
+                    >
+                      {active && (
+                        <span
+                          className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-full"
+                          style={{ background: '#06B6D4', boxShadow: '0 0 8px #06B6D4' }}
+                        />
+                      )}
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {canScrollRight && (
+              <button
+                onClick={() => scrollNav('right')}
+                className="absolute right-0 z-20 p-1 rounded-md bg-slate-900/90 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/20 shadow-lg transition"
+                title="Scroll navigation right"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* ── Action Buttons (Single Primary Ingestion Action) ── */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onUploadClick}
+              className="btn-3d flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-all font-bold"
+              style={{
+                background: 'linear-gradient(135deg, rgba(6,182,212,0.25) 0%, rgba(16,185,129,0.2) 100%)',
+                border: '1px solid rgba(6,182,212,0.6)',
+                color: '#06B6D4',
+                boxShadow: '0 0 18px rgba(6,182,212,0.3)',
+              }}
+              title="Ingest Real FIR, CDR, Bank Statement or Case Records"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Ingest Case Data</span>
+            </button>
+
             {onWarrantClick && (
-              <MagneticButton strength={0.3} maxDistance={15}>
               <button
                 onClick={onWarrantClick}
                 className="btn-3d flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg transition-all"
@@ -212,15 +289,29 @@ export const AppShell: React.FC<AppShellProps> = ({
                   border: '1px solid rgba(239,68,68,0.3)',
                   color: '#EF4444',
                 }}
-                title="Compile Court Arrest Warrant Brief"
+                title="Compile Judicial Evidence Brief (Decision Support)"
               >
                 <FileCheck className="w-3.5 h-3.5" />
-                <span>Warrant Brief</span>
+                <span>Judicial Brief</span>
               </button>
-              </MagneticButton>
             )}
 
-            <MagneticButton strength={0.3} maxDistance={15}>
+            {onBriefingClick && (
+              <button
+                onClick={onBriefingClick}
+                className="btn-3d flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg transition-all"
+                style={{
+                  background: 'rgba(139,92,246,0.08)',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  color: '#A78BFA',
+                }}
+                title="Voice Briefing: Audio Case Summary"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>Briefing</span>
+              </button>
+            )}
+
             <button
               onClick={onAuditClick}
               className="btn-3d flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg transition-all"
@@ -234,9 +325,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Audit</span>
             </button>
-            </MagneticButton>
 
-            <MagneticButton strength={0.3} maxDistance={15}>
             <button
               onClick={onExportClick}
               className="btn-3d flex items-center gap-1.5 text-xs font-mono px-2.5 py-1.5 rounded-lg transition-all"
@@ -245,30 +334,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 border: '1px solid rgba(6,182,212,0.2)',
                 color: '#06B6D4',
               }}
-              title="Export Executive Intelligence Report"
+              title="Export Case Dossier & Intelligence Report"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export</span>
             </button>
-            </MagneticButton>
 
-            <MagneticButton strength={0.4} maxDistance={20}>
-            <button
-              onClick={onUploadClick}
-              className="btn-3d flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg font-semibold transition-all"
-              style={{
-                background: 'linear-gradient(135deg, rgba(6,182,212,0.3) 0%, rgba(16,185,129,0.2) 100%)',
-                border: '1px solid rgba(6,182,212,0.5)',
-                color: '#06B6D4',
-                boxShadow: '0 0 20px rgba(6,182,212,0.15)',
-              }}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Ingest Data</span>
-            </button>
-            </MagneticButton>
-
-            {/* Security badge */}
+            {/* Security Integrity badge */}
             <div
               className="flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg"
               style={{
@@ -276,6 +348,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 border: '1px solid rgba(16,185,129,0.15)',
                 color: 'rgba(16,185,129,0.7)',
               }}
+              title="End-to-End Cryptographic Chain of Custody Verified"
             >
               <Shield className="w-3 h-3" />
               <span>SECURED</span>

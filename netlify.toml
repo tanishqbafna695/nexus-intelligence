@@ -1,0 +1,23 @@
+﻿# Netlify Configuration for TRACE Criminal Intelligence & Forensic Fusion System
+
+[build]
+  base = "apps/frontend"
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# 1. SPA fallback: Route all frontend navigation to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 2. Production API proxy (Optional):
+# If your backend is hosted (e.g. on Render/Railway/Fly/EC2), uncomment below to proxy API requests:
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://your-backend.onrender.com/api/:splat"
+#   status = 200
+#   force = true

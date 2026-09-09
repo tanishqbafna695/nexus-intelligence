@@ -19,8 +19,11 @@ from app.repositories.sqlite_repo import SQLiteRepository
 class TestExhaustiveEndpoints(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        from main import preload_synthetic_case
+        preload_synthetic_case()
         cls.client = TestClient(app)
         cls.test_case_id = "CASE-TEST-INT"
+
 
     def test_01_health_and_root_endpoints(self):
         """Test root and health status endpoints."""
@@ -265,6 +268,50 @@ class TestExhaustiveEndpoints(unittest.TestCase):
         res_cases = self.client.get("/api/cases")
         case_ids = [c["id"] for c in res_cases.json()]
         self.assertNotIn(temp_id, case_ids)
+
+    def test_22_cors_preflight_and_cascade_delete(self):
+        """Verify CORS preflight allows DELETE and cascade deletes nodes & documents."""
+        # 1. Test CORS preflight OPTIONS request for DELETE
+        headers = {
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "DELETE",
+            "Access-Control-Request-Headers": "Content-Type",
+        }
+        res_preflight = self.client.options("/api/cases/TEMP-DELETE-01", headers=headers)
+        self.assertEqual(res_preflight.status_code, 200)
+        allow_methods = res_preflight.headers.get("access-control-allow-methods", "")
+        self.assertIn("DELETE", allow_methods)
+
+        # 2. Create case and upload a document
+        res_c = self.client.post("/api/cases?name=Cascade+Purge+Case&description=Testing+Full+Purge")
+        self.assertEqual(res_c.status_code, 200)
+        cid = res_c.json()["id"]
+
+        # 3. Ingest a document
+        res_doc = self.client.post(
+            f"/api/cases/{cid}/documents",
+            files={"file": ("test_ledger.txt", io.BytesIO(b"Devendra transferred 50000 to Ramesh"), "text/plain")}
+        )
+        self.assertEqual(res_doc.status_code, 200)
+
+        # 4. Trigger Ingestion
+        res_ingest = self.client.post(f"/api/cases/{cid}/ingest")
+        self.assertEqual(res_ingest.status_code, 200)
+        self.assertGreater(len(res_ingest.json()["nodes"]), 0)
+
+        # 5. Delete case via DELETE endpoint
+        res_del = self.client.delete(f"/api/cases/{cid}")
+        self.assertEqual(res_del.status_code, 200)
+        self.assertEqual(res_del.json()["status"], "success")
+
+        # 6. Verify case graph is now empty and case is not listed
+        res_graph = self.client.get(f"/api/cases/{cid}/graph")
+        self.assertEqual(res_graph.status_code, 200)
+        self.assertEqual(len(res_graph.json()["nodes"]), 0)
+
+        res_list = self.client.get("/api/cases")
+        listed_ids = [c["id"] for c in res_list.json()]
+        self.assertNotIn(cid, listed_ids)
 
 
 if __name__ == "__main__":

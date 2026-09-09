@@ -305,7 +305,7 @@ export const MLModelInspector: React.FC<MLModelInspectorProps> = ({
         {activeMLTab === 'VULNERABILITY' && (
           <div className="space-y-3">
             <div className="text-xs font-mono text-slate-400">
-              NETWORK CUT-VERTICES (CRITICAL DECAPITATION TARGETS):
+              NETWORK CUT-VERTICES (KEY BOTTLENECK & DISRUPTION INTERMEDIARIES):
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -321,7 +321,7 @@ export const MLModelInspector: React.FC<MLModelInspectorProps> = ({
                       </span>
                       <h3 className="text-sm font-bold text-white mt-1">{target.label}</h3>
                     </div>
-                    <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-bold border border-red-500/40">
+                    <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/40">
                       CUT-VERTEX
                     </span>
                   </div>
@@ -345,7 +345,7 @@ export const MLModelInspector: React.FC<MLModelInspectorProps> = ({
                       className="w-full py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold transition flex items-center justify-center gap-1.5"
                     >
                       <Zap className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Inspect Decapitation Vector</span>
+                      <span>Inspect Intermediary Bottleneck</span>
                     </button>
                   )}
                 </div>

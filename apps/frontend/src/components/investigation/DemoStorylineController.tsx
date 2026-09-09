@@ -1,7 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Play, ChevronRight, ChevronLeft, Sparkles, CheckCircle2, RotateCcw } from 'lucide-react';
 import { askInvestigator } from '../../services/api';
-import { AnimatedTooltip } from '../ui/AnimatedTooltip';
 
 interface DemoStorylineControllerProps {
   caseId: string;
@@ -29,17 +28,6 @@ export const DemoStorylineController: React.FC<DemoStorylineControllerProps> = (
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [running, setRunning] = useState(false);
-  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleMouseEnter = useCallback((idx: number) => {
-    hoverTimerRef.current = setTimeout(() => setHoveredStep(idx), 500);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-    setHoveredStep(null);
-  }, []);
 
   const steps: StepDef[] = [
     {
@@ -162,25 +150,21 @@ export const DemoStorylineController: React.FC<DemoStorylineControllerProps> = (
           <ChevronLeft className="w-4 h-4" />
         </button>
 
-        <div className="relative flex items-center gap-1">
+        <div className="flex items-center gap-1">
           {steps.map((s, idx) => (
-            <AnimatedTooltip
+            <button
               key={s.number}
-              items={[{ id: s.number, name: s.title, designation: s.actionDesc }]}
+              onClick={() => handleExecuteStep(idx)}
+              className={`px-2.5 py-1 rounded font-mono text-[11px] transition ${
+                idx === currentStep
+                  ? 'bg-accent-cyan text-background font-bold shadow-md'
+                  : idx < currentStep
+                  ? 'bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30'
+                  : 'bg-surface-elevated text-text-muted hover:text-text-secondary'
+              }`}
             >
-              <button
-                onClick={() => handleExecuteStep(idx)}
-                className={`px-2.5 py-1 rounded font-mono text-[11px] transition ${
-                  idx === currentStep
-                    ? 'bg-accent-cyan text-background font-bold shadow-md'
-                    : idx < currentStep
-                    ? 'bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30'
-                    : 'bg-surface-elevated text-text-muted hover:text-text-secondary'
-                }`}
-              >
-                {s.number}
-              </button>
-            </AnimatedTooltip>
+              {s.number}
+            </button>
           ))}
         </div>
 

@@ -1,19 +1,30 @@
-﻿# 🛡️ TRACE — Criminal Intelligence & 3D Spatial Knowledge Graph Platform
+# 🛡️ TRACE — Criminal Network Intelligence & Decision-Support Platform
 
-**TRACE** is an advanced AI-powered criminal intelligence, knowledge graph, and forensic decision-support system designed for law enforcement, special investigation teams (SIT), and intelligence agencies.
+**TRACE** is an evidence-first, case-driven criminal intelligence and topological decision-support system designed for law enforcement investigators, special investigation teams (SIT), and criminal-intelligence analysts (SIH 2026).
+
+> [!IMPORTANT]
+> **Operating Standard — Decision Support Only**:
+> TRACE is an investigator decision-support system—**not** an automated guilt, arrest, warrant, interrogation, or deception-detection machine.
+> 1. It never labels an individual "guilty" from graph centrality, correlations, or model output.
+> 2. All priority scores are calibrated, evidence-backed scores: *Investigative priority score*, *Evidence support score*, and *Link confidence*.
+> 3. No simulated biometrics (heart rate, pupil dilation, stress percentages) or forced confessions.
+> 4. Interview preparation is non-leading, evidence-led, and strictly cites exhibits with mandatory non-coercion statutory notices (Section 161 CrPC / Section 180 BNSS, Article 20(3)).
+> 5. Statutory mentions explicitly mandate: *Requires independent prosecutorial and judicial review*.
+> 6. Authoritative runtime mode tracking (`live` | `demo` | `offline`) with cryptographic SHA-256 provenance and audit logging.
 
 ---
 
 ## 🏛️ System Architecture
 
 * **Backend**: FastAPI (Python 3.10+), NetworkX graph analytics, SQLite (WAL mode persistence), Pydantic v2 schemas.
-* **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, 3D Force-Directed WebGL Canvas, Cytoscape.js.
-* **Intelligence Engines**:
-  * **Police Solutions Engine**: Computes High-Value Target (HVT) priorities, statutory penal codes (BNS / NDPS / PMLA / IPC), articulation bottlenecks, and 72-hour raiding playbooks.
-  * **Universal Multi-Modal ETL**: Ingests telecom CDR/IPDR CSVs, bank/SWIFT ledgers, ANPR toll scans, and police FIR/interrogation transcripts.
-  * **Cross-Cartel Fusion**: Identifies transnational umbrella syndicates and bridge entities across isolated cases.
-  * **AI Suspect Interrogation Simulator**: Simulates custodial suspect dialogue with dynamic biometric stress (BPM / deception probability).
-  * **Judicial Charge Sheet & Warrant Generator**: Section 65B-compliant evidence dossiers with SHA-256 exhibit validation.
+* **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, 3D WebGL Canvas (Three.js/force-graph), Cytoscape.js 2D, HTML5 Audio Player.
+* **Core Investigation Engines**:
+  * **Investigative Priority Engine**: Computes unclamped investigative priority scores (0–100) and multi-source evidence support metrics, identifies network cut-vertices (articulation disruption nodes), and synthesizes 72-hour operational playbooks.
+  * **Evidence-Led Interview Preparation Assistant**: Formulates non-leading, objective interview plans for any `PERSON` node, referencing concrete evidence IDs with mandatory Article 20(3) non-coercion advisories and SQLite audit logging.
+  * **Universal Multi-Modal ETL**: Ingests telecom CDR/IPDR CSVs, banking SWIFT/wire transfers, ANPR highway toll scans, and FIR/surveillance transcripts with cryptographic SHA-256 integrity checks and PDF extraction.
+  * **Audio Evidence & Intercept Transcript Suite**: Interactive waveform scrubbing, synchronized playback, speaker diarization tags, entity extraction, and audit trails.
+  * **Topological Link Prediction & Graph ML**: Adamic-Adar, Resource Allocation, Jaccard coefficients, Louvain community clustering, and cut-point articulation analysis.
+  * **Judicial Application Package Generator**: Section 65B-compliant evidence dossiers with SHA-256 exhibit validation and mandatory prosecutorial review notices.
 
 ---
 
@@ -28,8 +39,8 @@
 
 ### 2. Backend Setup
 
-`ash
-# Navigate to the backend directory
+```bash
+# Navigate to backend directory
 cd apps/backend
 
 # (Optional) Create and activate virtual environment
@@ -41,21 +52,22 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-pip install scipy
+pip install scipy pypdf
 
 # Launch FastAPI backend server
 python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-`
+```
 
 * Backend API runs at: **http://127.0.0.1:8000**
 * Interactive Swagger Docs: **http://127.0.0.1:8000/docs**
+* Authoritative System Mode: **http://127.0.0.1:8000/api/system/mode**
 
 ---
 
 ### 3. Frontend Setup
 
-`ash
-# In a new terminal, navigate to the frontend directory
+```bash
+# In a new terminal, navigate to frontend directory
 cd apps/frontend
 
 # Install dependencies
@@ -63,64 +75,69 @@ npm install
 
 # Start local development server
 npm run dev
-# OR build and run preview server
+
+# OR build production bundle and preview
 npm run build
 npm run preview
-`
+```
 
-* TRACE Web Console runs at: **http://localhost:3000** (or Vite dev port displayed in terminal)
+* TRACE Web Console runs at: **http://localhost:3000**
 
 ---
 
 ## 🧪 Running Test Suites
 
-TRACE includes 25+ exhaustive integration tests and 4 real-world landmark benchmarks:
+TRACE includes 48 comprehensive automated tests covering universal ETL, graph analytics, machine learning, security constraints, and end-to-end evidence decision support:
 
-`ash
+```bash
+# Run complete test suite (48 tests, 100% passing)
+pytest tests/
+
+# Run end-to-end decision support & integrity verification test
+pytest tests/test_evidence_decision_support_e2e.py
+
 # Run exhaustive REST API test suite (38+ endpoints)
-python tests/test_exhaustive_endpoints.py
+pytest tests/test_exhaustive_endpoints.py
 
 # Run real-life landmark benchmarks (26/11, PNB Scam, Mundra Port, Pulwama)
-python tests/test_real_life_benchmarks.py
-
-# Run complete case creation, ingestion & police solutions lifecycle test
-python tests/test_new_case_lifecycle.py
-`
+pytest tests/test_real_life_benchmarks.py
+```
 
 ---
 
 ## 📂 Repository Structure
 
-`
+```
 Trace/
 ├── apps/
 │   ├── backend/             # FastAPI REST service & Python reasoning engines
 │   │   ├── app/
 │   │   │   ├── api/         # REST router & endpoint definitions
-│   │   │   ├── models/      # Pydantic v2 schemas
-│   │   │   ├── repositories/# SQLite & NetworkX persistence
-│   │   │   └── services/    # ETL, ML, Bayesian & Police Solutions engines
-│   │   └── main.py          # FastAPI application entrypoint
+│   │   │   ├── models/      # Pydantic v2 schemas (contracts)
+│   │   │   ├── repositories/# SQLite WAL & NetworkX persistence
+│   │   │   └── services/    # ETL, priority assessment, interview prep, ML
+│   │   └── main.py          # FastAPI application entrypoint & synthetic cases
 │   └── frontend/            # React 18 + TypeScript + 3D WebGL HUD
 │       ├── src/
-│       │   ├── components/  # 3D Canvas, Police Solutions, Case Hub, Modals
+│       │   ├── components/  # Priority Assessment, Interview Prep, Audio Player
 │       │   ├── services/    # Unified API client & offline fallbacks
 │       │   └── App.tsx      # Main application state & routing
 │       └── package.json
 ├── data/                    # Synthetic benchmarks & ground truth datasets
-├── docs/                    # Architectural guidelines & AI rules
-└── tests/                   # Automated unit, integration & benchmark suites
-`
+├── docs/                    # Architectural guidelines & operating standards
+└── tests/                   # Automated unit, integration & E2E benchmark suites
+```
 
 ---
 
-## 🔒 Security & Evidence Compliance
+## 🔒 Legal Integrity & Evidence Compliance
 
-* All exported legal exhibits include cryptographic **SHA-256 hashes** compliant with **Section 65B of the Indian Evidence Act**.
-* Role-based multi-agency sanitization masks confidential informants (HUMINT) based on receiving agency clearance levels (TOP SECRET, SECRET, CONFIDENTIAL).
+* **Section 65B Indian Evidence Act / Section 63 Bharatiya Sakshya Adhiniyam (BSA)**: All ingested files and exported exhibits carry cryptographic SHA-256 hashes verifying chain-of-custody.
+* **Non-Coercion Compliance**: Interview preparation strictly respects Section 161 CrPC / Section 180 BNSS and Article 20(3) of the Constitution of India against self-incrimination.
+* **Prosecutorial Oversight**: Automated drafts are clearly demarcated as decision-support aids requiring independent verification and filing by authorized legal counsel.
 
 ---
 
 ## 👥 Authors & License
 
-Maintained by the TRACE Intelligence Development Team.
+Maintained by the TRACE Intelligence Development Team for Smart India Hackathon (SIH 2026).

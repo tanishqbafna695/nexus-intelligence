@@ -1,13 +1,16 @@
 """
-Bayesian Culprit Analyzer Engine
-Evaluates suspect profile parameters (personality, alibis, forensic reports, rivalry targets, activity spikes, mental state)
-to calculate an objective Guilt Probability score.
+Graph-Driven Culprit Analyzer Engine (TRACE).
+Derives suspect guilt probabilities, roles, and reasons from REAL graph topology:
+networkx centralities (degree, betweenness, pagerank), cross-community bridge detection,
+multi-source document corroboration, and telecom/financial edge nexus.
 """
 
-from typing import List, Dict, Any
-from app.repositories.networkx_repo import NetworkXGraphRepository
+from typing import List, Dict, Any, Optional
+import networkx as nx
+from networkx.algorithms.community import greedy_modularity_communities
 
-SUSPECT_PROFILES: Dict[str, Dict[str, Any]] = {
+# Benchmark historical case profiles (OPTIONAL flavor metadata for historical demo cases)
+BENCHMARK_CASE_PROFILES: Dict[str, Dict[str, Any]] = {
     "person_devendra": {
         "id": "person_devendra",
         "name": "Devendra Sharma",
@@ -15,52 +18,6 @@ SUSPECT_PROFILES: Dict[str, Dict[str, Any]] = {
         "personality": "Calculating & Narcissistic",
         "mental_state": "Calm & Controlling",
         "rivalry_targets": ["person_tariq"],
-        "alibi_validity": 0.85, # Solid bank records, but covers a proxy
-        "forensics": {
-            "fingerprints_found": True,
-            "dna_match": False,
-            "celltower_intersections": 4, # NHAVA SHEVA logs
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 42.1,
-            "critical_year_spikes": 2, # Spikes during NHAVA transaction dates
-        }
-    },
-    "person_ramesh": {
-        "id": "person_ramesh",
-        "name": "Ramesh Kumar",
-        "role": "Logistics Transporter",
-        "personality": "Impulsive & Submissive",
-        "mental_state": "Paranoid & Stressed",
-        "rivalry_targets": [],
-        "alibi_validity": 0.40, # Weak travel alibi, MH-04 plate tracked at crime scene
-        "forensics": {
-            "fingerprints_found": True,
-            "dna_match": True,
-            "celltower_intersections": 11,
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 88.4,
-            "critical_year_spikes": 6,
-        }
-    },
-    "person_suresh": {
-        "id": "person_suresh",
-        "name": "Suresh Patil",
-        "role": "Wholesale Distributor",
-        "personality": "Calculating & Patient",
-        "mental_state": "Calm & Indifferent",
-        "rivalry_targets": ["person_ramesh"],
-        "alibi_validity": 0.95, # Verified at station during NHAVA bust
-        "forensics": {
-            "fingerprints_found": False,
-            "dna_match": False,
-            "celltower_intersections": 1,
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 12.3,
-            "critical_year_spikes": 0,
-        }
     },
     "person_tariq": {
         "id": "person_tariq",
@@ -69,352 +26,180 @@ SUSPECT_PROFILES: Dict[str, Dict[str, Any]] = {
         "personality": "Deceptive & Ruthless",
         "mental_state": "Hostile & Defensive",
         "rivalry_targets": ["person_victor", "person_devendra"],
-        "alibi_validity": 0.20, # Fabricated alibi. Claims was out of town, but celltower matches Warehouse 17
-        "forensics": {
-            "fingerprints_found": True,
-            "dna_match": True,
-            "celltower_intersections": 32, # Continuous location match for years
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 125.6, # High CDR variance
-            "critical_year_spikes": 14,
-        }
     },
-    "person_imran": {
-        "id": "person_imran",
-        "name": "Imran Khan",
-        "role": "Security Guard / Proxy",
-        "personality": "Compliant & Fearful",
-        "mental_state": "Highly Stressed",
+    "person_ramesh": {
+        "id": "person_ramesh",
+        "name": "Ramesh Kumar",
+        "role": "Logistics Transporter",
+        "personality": "Impulsive & Submissive",
+        "mental_state": "Paranoid & Stressed",
         "rivalry_targets": [],
-        "alibi_validity": 0.50, # Claims was asleep, phone records show calls to Tariq during heist
-        "forensics": {
-            "fingerprints_found": False,
-            "dna_match": False,
-            "celltower_intersections": 24,
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 34.5,
-            "critical_year_spikes": 3,
-        }
     },
-    "person_zaid": {
-        "id": "person_zaid",
-        "name": "Zaid Sheikh",
-        "role": "Local Runner",
-        "personality": "Impulsive & Reckless",
-        "mental_state": "Calm",
-        "rivalry_targets": [],
-        "alibi_validity": 0.70, # Confirmed local activity
-        "forensics": {
-            "fingerprints_found": False,
-            "dna_match": False,
-            "celltower_intersections": 2,
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 15.0,
-            "critical_year_spikes": 1,
-        }
-    },
-    "person_victor": {
-        "id": "person_victor",
-        "name": "Victor Vance",
-        "role": "Syndicate Coordinator / Bridge",
-        "personality": "Highly Intelligent & Anti-Social",
-        "mental_state": "Desperate & Manipulative",
-        "rivalry_targets": ["person_tariq"],
-        "alibi_validity": 0.15, # Complete fake alibi. Intersected both clusters.
-        "forensics": {
-            "fingerprints_found": True,
-            "dna_match": True,
-            "celltower_intersections": 18, # Intersected both Mumbai & Nhava Sheva towers
-        },
-        "activity_metrics": {
-            "yearly_call_variance": 194.2, # Extreme variance over years
-            "critical_year_spikes": 19,
-        }
-    },
-    # ── CASE-002 Suspect Profiles ──
-    "person_karan": {
-        "id": "person_karan",
-        "name": "Karan Mehra",
-        "role": "Lead Cyber Hacker",
-        "personality": "Highly Intelligent & Narcissistic",
-        "mental_state": "Arrogant & Confident",
-        "rivalry_targets": ["person_vikram"],
-        "alibi_validity": 0.10,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 22 },
-        "activity_metrics": { "yearly_call_variance": 145.0, "critical_year_spikes": 12 }
-    },
-    "person_ananya": {
-        "id": "person_ananya",
-        "name": "Ananya Roy",
-        "role": "Money Mule Handler",
-        "personality": "Calculating",
-        "mental_state": "Stressed",
-        "rivalry_targets": [],
-        "alibi_validity": 0.45,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 8 },
-        "activity_metrics": { "yearly_call_variance": 65.0, "critical_year_spikes": 5 }
-    },
-    "person_vikram": {
-        "id": "person_vikram",
-        "name": "Vikram Malhotra",
-        "role": "Offshore Financier",
-        "personality": "Ruthless",
-        "mental_state": "Calm",
-        "rivalry_targets": ["person_karan"],
-        "alibi_validity": 0.80,
-        "forensics": { "fingerprints_found": False, "dna_match": False, "celltower_intersections": 2 },
-        "activity_metrics": { "yearly_call_variance": 30.0, "critical_year_spikes": 2 }
-    },
-    "person_rahul": {
-        "id": "person_rahul",
-        "name": "Rahul Verma",
-        "role": "Infrastructure Manager",
-        "personality": "Passive",
-        "mental_state": "Fearful",
-        "rivalry_targets": [],
-        "alibi_validity": 0.70,
-        "forensics": { "fingerprints_found": False, "dna_match": False, "celltower_intersections": 4 },
-        "activity_metrics": { "yearly_call_variance": 15.0, "critical_year_spikes": 1 }
-    },
-    # ── CASE-003 Suspect Profiles ──
-    "person_kabir": {
-        "id": "person_kabir",
-        "name": "Captain Kabir Rao",
-        "role": "Arms Trafficking Ring Leader",
-        "personality": "Authoritative & Manipulative",
-        "mental_state": "Hostile & Calculating",
-        "rivalry_targets": ["person_sameer"],
-        "alibi_validity": 0.12,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 35 },
-        "activity_metrics": { "yearly_call_variance": 180.0, "critical_year_spikes": 16 }
-    },
-    "person_sameer": {
-        "id": "person_sameer",
-        "name": "Major Sameer Roy",
-        "role": "Military Logistics Supplier",
-        "personality": "Disciplined & Deceptive",
-        "mental_state": "Guarded",
-        "rivalry_targets": ["person_kabir"],
-        "alibi_validity": 0.35,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 14 },
-        "activity_metrics": { "yearly_call_variance": 90.0, "critical_year_spikes": 7 }
-    },
-    "person_feroz": {
-        "id": "person_feroz",
-        "name": "Feroz Khan",
-        "role": "Mundra Port Broker",
-        "personality": "Opportunistic",
-        "mental_state": "Desperate",
-        "rivalry_targets": [],
-        "alibi_validity": 0.50,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 19 },
-        "activity_metrics": { "yearly_call_variance": 75.0, "critical_year_spikes": 6 }
-    },
-    "person_dinesh": {
-        "id": "person_dinesh",
-        "name": "Dinesh Gupta",
-        "role": "Corrupt Customs Agent",
-        "personality": "Greedy",
-        "mental_state": "Stressed",
-        "rivalry_targets": [],
-        "alibi_validity": 0.85,
-        "forensics": { "fingerprints_found": False, "dna_match": False, "celltower_intersections": 5 },
-        "activity_metrics": { "yearly_call_variance": 20.0, "critical_year_spikes": 1 }
-    },
-    # ── CASE-004 Suspect Profiles (DarkNet Ghost) ──
-    "person_zack": {
-        "id": "person_zack",
-        "name": "Zack 'Ghost' Alva",
-        "role": "Darknet Syndicate Kingpin",
-        "personality": "Paranoid & Cryptographic Genius",
-        "mental_state": "Obsessive & Isolated",
-        "rivalry_targets": ["person_rohit"],
-        "alibi_validity": 0.08,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 28 },
-        "activity_metrics": { "yearly_call_variance": 210.0, "critical_year_spikes": 22 }
-    },
-    "person_meera": {
-        "id": "person_meera",
-        "name": "Meera Sen",
-        "role": "Crypto Tumbler Architect",
-        "personality": "Calculating & Introverted",
-        "mental_state": "Calm & Cautious",
-        "rivalry_targets": [],
-        "alibi_validity": 0.40,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 11 },
-        "activity_metrics": { "yearly_call_variance": 85.0, "critical_year_spikes": 8 }
-    },
-    "person_arjun": {
-        "id": "person_arjun",
-        "name": "Arjun Nair",
-        "role": "Goa Dead-Drop Courier",
-        "personality": "Impulsive & Reckless",
-        "mental_state": "Agitated",
-        "rivalry_targets": [],
-        "alibi_validity": 0.25,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 32 },
-        "activity_metrics": { "yearly_call_variance": 140.0, "critical_year_spikes": 14 }
-    },
-    "person_rohit": {
-        "id": "person_rohit",
-        "name": "Rohit Singhania",
-        "role": "Delhi Wholesaler Receiver",
-        "personality": "Aggressive & Greedy",
-        "mental_state": "High-Stress",
-        "rivalry_targets": ["person_zack"],
-        "alibi_validity": 0.60,
-        "forensics": { "fingerprints_found": False, "dna_match": False, "celltower_intersections": 9 },
-        "activity_metrics": { "yearly_call_variance": 45.0, "critical_year_spikes": 4 }
-    },
-    # ── CASE-005 Suspect Profiles (Golden Falcon) ──
-    "person_sheikh_mansoor": {
-        "id": "person_sheikh_mansoor",
-        "name": "Mansoor 'Falcon' Merchant",
-        "role": "Dubai Bullion Kingpin",
-        "personality": "Authoritative & Diplomatic",
-        "mental_state": "Controlled & Confident",
-        "rivalry_targets": ["person_rashid"],
-        "alibi_validity": 0.10,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 45 },
-        "activity_metrics": { "yearly_call_variance": 240.0, "critical_year_spikes": 28 }
-    },
-    "person_rashid": {
-        "id": "person_rashid",
-        "name": "Rashid Qureshi",
-        "role": "Hawala Mastermind Mumbai",
-        "personality": "Secretive & Ruthless",
-        "mental_state": "Defensive",
-        "rivalry_targets": ["person_sheikh_mansoor"],
-        "alibi_validity": 0.20,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 30 },
-        "activity_metrics": { "yearly_call_variance": 160.0, "critical_year_spikes": 17 }
-    },
-    "person_fatima": {
-        "id": "person_fatima",
-        "name": "Fatima Al-Sayed",
-        "role": "Airport Air Courier Handler",
-        "personality": "Nervous & Compliant",
-        "mental_state": "Terrified",
-        "rivalry_targets": [],
-        "alibi_validity": 0.05,
-        "forensics": { "fingerprints_found": True, "dna_match": True, "celltower_intersections": 22 },
-        "activity_metrics": { "yearly_call_variance": 95.0, "critical_year_spikes": 9 }
-    },
-    "person_sanjay": {
-        "id": "person_sanjay",
-        "name": "Sanjay Zaveri",
-        "role": "Zaveri Bazaar Gold Smelter",
-        "personality": "Opportunistic & Evasive",
-        "mental_state": "Guarded",
-        "rivalry_targets": [],
-        "alibi_validity": 0.55,
-        "forensics": { "fingerprints_found": True, "dna_match": False, "celltower_intersections": 16 },
-        "activity_metrics": { "yearly_call_variance": 50.0, "critical_year_spikes": 5 }
+    "person_suresh": {
+        "id": "person_suresh",
+        "name": "Suresh Patil",
+        "role": "Wholesale Distributor",
+        "personality": "Calculating & Patient",
+        "mental_state": "Calm & Indifferent",
+        "rivalry_targets": ["person_ramesh"],
     }
 }
 
+# Alias for backward compatibility if any legacy code imports SUSPECT_PROFILES
+SUSPECT_PROFILES = BENCHMARK_CASE_PROFILES
+
+
 class CulpritAnalyzer:
     @staticmethod
-    def run_analysis(repo: NetworkXGraphRepository) -> Dict[str, Any]:
-        """Calculates guilt score and outputs suspect breakdowns with real-life parameters."""
+    def run_analysis(repo, case_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        BUG 4 FIX: Computes guilt probabilities directly from the REAL live graph.
+        Evaluates degree centrality, betweenness centrality, pagerank, cross-community
+        bridging, and corroborating sources for every PERSON node.
+        """
+        all_graph = repo.get_all()
+        all_nodes = all_graph.nodes
+        all_edges = all_graph.edges
+
+        person_nodes = [n for n in all_nodes if n.type == "PERSON"]
+        if not person_nodes:
+            # Fallback if no explicit PERSON nodes: evaluate top entities
+            person_nodes = all_nodes[:5]
+
+        # 1. Build NetworkX graph
+        nx_graph = getattr(repo, 'graph', None)
+        if nx_graph is None or not isinstance(nx_graph, nx.Graph):
+            nx_graph = nx.Graph()
+            for n in all_nodes:
+                nx_graph.add_node(n.id, label=n.label, type=n.type)
+            for e in all_edges:
+                nx_graph.add_edge(e.source, e.target, type=e.type, weight=e.confidence)
+        else:
+            nx_graph = nx.Graph(nx_graph)
+
+        total_nodes = len(nx_graph.nodes)
+        
+        # 2. Centrality Metrics
+        deg_centrality = nx.degree_centrality(nx_graph) if total_nodes > 1 else {n.id: 1.0 for n in person_nodes}
+        btw_centrality = nx.betweenness_centrality(nx_graph) if total_nodes > 2 else {n.id: 0.0 for n in person_nodes}
+        try:
+            pagerank = nx.pagerank(nx_graph) if total_nodes > 1 else {n.id: 1.0 for n in person_nodes}
+        except Exception:
+            pagerank = deg_centrality
+
+        # 3. Community Detection (for cross-community bridging)
+        communities = []
+        if total_nodes >= 3:
+            try:
+                communities = list(greedy_modularity_communities(nx_graph))
+            except Exception:
+                communities = list(nx.connected_components(nx_graph))
+
         suspects_result = []
         rivalries = []
 
-        # Gather all nodes of type PERSON from graph
-        all_nodes = repo.get_all().nodes
-        person_node_ids = {n.id for n in all_nodes if n.type == "PERSON"}
+        is_benchmark_case = case_id in ("CASE-001", "CASE-26-11") if case_id else False
 
-        for p_id in person_node_ids:
-            # Fallback default if not pre-mapped
-            profile = SUSPECT_PROFILES.get(p_id)
-            if not profile:
-                # Generate default dummy profile for dynamic suspects
-                profile = {
-                    "id": p_id,
-                    "name": repo.get_node(p_id).label if repo.get_node(p_id) else p_id,
-                    "role": "Suspect",
-                    "personality": "Uncooperative",
-                    "mental_state": "Defensive",
-                    "rivalry_targets": [],
-                    "alibi_validity": 0.60,
-                    "forensics": {
-                        "fingerprints_found": False,
-                        "dna_match": False,
-                        "celltower_intersections": 1
-                    },
-                    "activity_metrics": {
-                        "yearly_call_variance": 10.0,
-                        "critical_year_spikes": 1
-                    }
-                }
+        for p_node in person_nodes:
+            p_id = p_node.id
+            p_label = p_node.label
 
-            # ── Bayesian Guilt Score Calculation ──
-            guilt_score = 0.0
+            # Real graph signals
+            deg_c = deg_centrality.get(p_id, 0.0)
+            btw_c = btw_centrality.get(p_id, 0.0)
+            pr_val = pagerank.get(p_id, 0.0)
+
+            # Connected edges and sources
+            incident_edges = [e for e in all_edges if e.source == p_id or e.target == p_id]
+            source_docs = {e.source_document for e in incident_edges if e.source_document}
+            doc_count = len(source_docs)
+
+            call_edges = [e for e in incident_edges if e.type in ("CALLED", "USES", "CONTACTED", "COMMUNICATED_WITH")]
+            fin_edges = [e for e in incident_edges if e.type in ("TRANSFERRED_TO", "PAID", "RECEIVED", "OWNS", "OPERATES", "FINANCIAL_TRANSACTION")]
+            vehicle_edges = [e for e in incident_edges if e.type in ("OPERATES", "SPOTTED_AT")]
+
+            # Community bridging check
+            neighbors = set(nx_graph.neighbors(p_id)) if p_id in nx_graph else set()
+            bridged_comms = [c for c in communities if any(nbr in c for nbr in neighbors)]
+            is_bridge = len(bridged_comms) >= 2
+
+            # Dynamic Role Deduction
+            if btw_c > 0.15 or (is_bridge and btw_c > 0.08):
+                role = "Syndicate Coordinator / Core Bottleneck"
+                personality = "Calculating & Controlling"
+                mental_state = "Hostile & Defensive"
+            elif len(fin_edges) >= max(len(call_edges), 1):
+                role = "Financial Controller / Hawala Handler"
+                personality = "Secretive & Methodical"
+                mental_state = "Guarded"
+            elif len(call_edges) > 1:
+                role = "Communications Dispatcher"
+                personality = "Evasive & Alert"
+                mental_state = "High-Stress"
+            elif len(vehicle_edges) > 0:
+                role = "Logistics Transporter"
+                personality = "Impulsive"
+                mental_state = "Paranoid"
+            else:
+                role = "Syndicate Operative"
+                personality = "Uncooperative"
+                mental_state = "Guarded"
+
+            # Merge flavor metadata ONLY for benchmark cases
+            if is_benchmark_case and p_id in BENCHMARK_CASE_PROFILES:
+                bench = BENCHMARK_CASE_PROFILES[p_id]
+                role = bench.get("role", role)
+                personality = bench.get("personality", personality)
+                mental_state = bench.get("mental_state", mental_state)
+
+            # Compute REAL Guilt Probability
+            base_score = 30.0 + (deg_c * 35.0)
+            flow_boost = min(btw_c * 75.0, 30.0)
+            bridge_bonus = 12.0 if is_bridge else 0.0
+            corroboration_bonus = min(doc_count * 6.0, 18.0)
+            dual_nexus_bonus = 8.0 if (len(fin_edges) > 0 and len(call_edges) > 0) else (4.0 if len(fin_edges) > 0 or len(call_edges) > 0 else 0.0)
+
+            raw_guilt = base_score + flow_boost + bridge_bonus + corroboration_bonus + dual_nexus_bonus
+            final_guilt = round(min(max(raw_guilt, 32.0), 98.5), 2)
+
+            # Generate Truthful Structural Reasons from Real Graph Signals
             reasons = []
+            if btw_c > 0.06:
+                reasons.append(f"Critical syndicate bottleneck (betweenness centrality: {btw_c:.3f}) controlling operational network flow.")
+            if is_bridge:
+                reasons.append(f"Cross-community bridge node linking {len(bridged_comms)} distinct operational clusters.")
+            if doc_count >= 2:
+                doc_str = ", ".join(sorted(list(source_docs))[:3])
+                reasons.append(f"Corroborated across {doc_count} distinct intelligence records ({doc_str}).")
+            elif doc_count == 1:
+                reasons.append(f"Corroborated in intelligence record '{list(source_docs)[0]}'.")
+            if len(fin_edges) > 0 and len(call_edges) > 0:
+                reasons.append(f"Dual-nexus verified: active in {len(fin_edges)} financial transactions and {len(call_edges)} communication intercepts.")
+            elif len(fin_edges) > 0:
+                reasons.append(f"Direct financial link: {len(fin_edges)} transaction/account edges connected to suspect.")
+            elif len(call_edges) > 0:
+                reasons.append(f"Direct telecom link: {len(call_edges)} intercepted calls/communication records.")
+            if deg_c > 0.15:
+                reasons.append(f"High network connectivity (degree centrality: {deg_c:.3f}) with {len(neighbors)} direct ties.")
 
-            # 1. Alibi Validity (lower validity -> higher guilt)
-            alibi_weight = (1.0 - profile["alibi_validity"]) * 25.0
-            guilt_score += alibi_weight
-            if profile["alibi_validity"] < 0.3:
-                reasons.append("Highly suspicious or fabricated alibi.")
-            elif profile["alibi_validity"] < 0.6:
-                reasons.append("Inconsistent alibi verification records.")
-
-            # 2. Forensic DNA match (+25%)
-            if profile["forensics"]["dna_match"]:
-                guilt_score += 25.0
-                reasons.append("DNA forensic matches traces from the primary Nhava Sheva cargo container.")
-
-            # 3. Fingerprints found (+15%)
-            if profile["forensics"]["fingerprints_found"]:
-                guilt_score += 15.0
-                reasons.append("Identifiable fingerprints recovered from contraband shipping crates.")
-
-            # 4. Celltower intersects
-            tower_count = profile["forensics"]["celltower_intersections"]
-            tower_weight = min(tower_count * 1.5, 15.0)
-            guilt_score += tower_weight
-            if tower_count >= 15:
-                reasons.append(f"Frequent spatial matches ({tower_count} intersects) with primary crime scenes.")
-            elif tower_count >= 4:
-                reasons.append(f"Observed in vicinity of crime locations during transaction timestamps.")
-
-            # 5. Long-term activity variance & spikes (indicates coordination surges)
-            spikes = profile["activity_metrics"]["critical_year_spikes"]
-            variance = profile["activity_metrics"]["yearly_call_variance"]
-            activity_weight = min((spikes * 1.0) + (variance * 0.05), 20.0)
-            guilt_score += activity_weight
-            if spikes >= 8:
-                reasons.append(f"Sudden, high-frequency activity surges ({spikes} yearly spikes) coinciding with illicit transactions.")
-
-            # Cap guilt score at 99% (never 100% certain in forensics)
-            final_guilt = min(guilt_score, 99.0)
-
-            # Map rivalries to display the matrix
-            for target_id in profile["rivalry_targets"]:
-                target_profile = SUSPECT_PROFILES.get(target_id)
-                target_name = target_profile["name"] if target_profile else target_id
-                rivalries.append({
-                    "source_id": p_id,
-                    "source_name": profile["name"],
-                    "target_id": target_id,
-                    "target_name": target_name,
-                    "type": "Rivalry/Conflict"
-                })
+            # Synthetic alibi validity derived inversely from structural evidence
+            alibi_validity = round(max(0.1, 1.0 - (final_guilt / 100.0)), 2)
 
             suspects_result.append({
                 "id": p_id,
-                "name": profile["name"],
-                "role": profile["role"],
-                "personality": profile["personality"],
-                "mental_state": profile["mental_state"],
-                "alibi_validity": profile["alibi_validity"],
-                "forensics": profile["forensics"],
-                "activity_metrics": profile["activity_metrics"],
-                "guilt_probability": round(final_guilt, 2),
+                "name": p_label,
+                "role": role,
+                "personality": personality,
+                "mental_state": mental_state,
+                "alibi_validity": alibi_validity,
+                "betweenness_centrality": round(btw_c, 4),
+                "degree_centrality": round(deg_c, 4),
+                "pagerank": round(pr_val, 4),
+                "cross_community_bridge": is_bridge,
+                "corroborating_sources_count": doc_count,
+                "financial_edges_count": len(fin_edges),
+                "call_edges_count": len(call_edges),
+                "guilt_probability": final_guilt,
                 "reasons": reasons
             })
 

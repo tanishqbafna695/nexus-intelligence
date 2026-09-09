@@ -160,7 +160,7 @@ class PredictiveThreatEngine:
                     "markov_state": "REGIONAL_DISTRIBUTION"
                 }
             ]
-        else: # CASE-005
+        elif case_id == "CASE-005":
             forecast_items = [
                 {
                     "id": "MARKOV_PRED_05_1",
@@ -174,6 +174,63 @@ class PredictiveThreatEngine:
                     "markov_state": "HAWALA_FUND_LAYERING"
                 }
             ]
+        else:
+            # Dynamic forecast derived from real live case graph
+            persons = [n for n in nodes if n.type == "PERSON"]
+            accounts = [n for n in nodes if n.type == "ACCOUNT"]
+            phones = [n for n in nodes if n.type == "PHONE"]
+            vehicles = [n for n in nodes if n.type == "VEHICLE"]
+            top_name = persons[0].label if persons else "Primary Suspect"
+
+            forecast_items = []
+            if accounts:
+                forecast_items.append({
+                    "id": f"DYN_THREAT_01",
+                    "timeframe": "T + 8 Hours",
+                    "threat_type": "Hawala Layering & Fund Flight",
+                    "probability": round(float(next_state_dist[1]) * 100.0, 1),
+                    "target_entity": f"{top_name} → {accounts[0].label}",
+                    "description": f"Predicted fund flight from {accounts[0].label} into secondary accounts.",
+                    "recommended_action": f"Freeze account {accounts[0].label} immediately under PMLA Sec 17.",
+                    "severity": "CRITICAL",
+                    "markov_state": "HAWALA_FUND_LAYERING"
+                })
+            if phones:
+                forecast_items.append({
+                    "id": f"DYN_THREAT_02",
+                    "timeframe": "T + 18 Hours",
+                    "threat_type": "Burner SIM Disposal & Evasion",
+                    "probability": round(float(next_state_dist[4]) * 100.0, 1),
+                    "target_entity": f"{top_name} ({phones[0].label})",
+                    "description": f"High risk of phone terminal discard to sever active wiretap trace.",
+                    "recommended_action": f"Issue base station ping alert on {phones[0].label}.",
+                    "severity": "HIGH",
+                    "markov_state": "EVASION_EVIDENCE_WIPE"
+                })
+            if vehicles:
+                forecast_items.append({
+                    "id": f"DYN_THREAT_03",
+                    "timeframe": "T + 24 Hours",
+                    "threat_type": "Contraband Highway Transport",
+                    "probability": round(float(next_state_dist[3]) * 100.0, 1),
+                    "target_entity": vehicles[0].label,
+                    "description": f"Vehicle {vehicles[0].label} flagged for transport dispatch.",
+                    "recommended_action": "Alert highway patrol and toll plaza automated cameras.",
+                    "severity": "CRITICAL",
+                    "markov_state": "REGIONAL_DISTRIBUTION"
+                })
+            if not forecast_items:
+                forecast_items.append({
+                    "id": "DYN_THREAT_BASE",
+                    "timeframe": "T + 12 Hours",
+                    "threat_type": "Syndicate Tactical Coordination",
+                    "probability": 75.0,
+                    "target_entity": top_name,
+                    "description": f"Tactical regrouping activity detected for {top_name}.",
+                    "recommended_action": "Maintain active surveillance across all case associates.",
+                    "severity": "HIGH",
+                    "markov_state": "INCEPTION_PLANNING"
+                })
 
         # Calculate composite syndicate escalation threat score
         threat_score = int(min(max(

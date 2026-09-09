@@ -18,7 +18,7 @@ from app.services.ingestion.parser import DocumentParser
 ENV = os.getenv("APP_ENV", "development")          # "production" | "development"
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000"
+    "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")
 
 # ---------------------------------------------------------------------------
@@ -66,13 +66,13 @@ app.add_middleware(
     else ["*.example.gov.in"],  # Replace with actual government domain in prod
 )
 
-# 2. CORS — explicit allowlist only (no wildcard)
+# 2. CORS — allow all methods and dev origins in non-production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,          # Never send cookies cross-origin in this API
-    allow_methods=["GET", "POST"],    # Only the methods actually used
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+    allow_origins=ALLOWED_ORIGINS if ENV == "production" else ["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "PUT", "OPTIONS", "PATCH"],
+    allow_headers=["*"],
 )
 
 # 3. Security Response Headers

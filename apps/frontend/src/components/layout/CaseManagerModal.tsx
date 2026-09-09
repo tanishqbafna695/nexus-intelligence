@@ -193,15 +193,13 @@ export const CaseManagerModal: React.FC<CaseManagerModalProps> = ({
                     >
                       Select
                     </button>
-                    {cases.length > 1 && (
-                      <button
-                        onClick={() => setCaseToDelete(c.id)}
-                        title="Delete this case"
-                        className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setCaseToDelete(c.id)}
+                      title="Permanently expunge this case"
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 hover:text-red-300 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
