@@ -23,6 +23,8 @@ import { WiretapAudioInspector } from './components/investigation/WiretapAudioIn
 import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
 import { MLModelInspector } from './components/analytics/MLModelInspector';
 import { CrossSyndicateFusion } from './components/analytics/CrossSyndicateFusion';
+import { ThreatForecastConsole } from './components/investigation/ThreatForecastConsole';
+import { PoliceSolutionsPanel } from './components/investigation/PoliceSolutionsPanel';
 import { WarrantGeneratorModal } from './components/investigation/WarrantGeneratorModal';
 import { EvidenceLedger } from './components/evidence/EvidenceLedger';
 import { InvestigativePriorityPanel } from './components/investigation/InvestigativePriorityPanel';
@@ -661,11 +663,24 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Priority Assessment & Tactical Solutions Tab */}
-      {(currentTab === 'investigative_priorities' || currentTab === 'police_solutions') && (
+      {/* Priority Assessment Tab */}
+      {currentTab === 'investigative_priorities' && (
         <div className="h-full">
           <ErrorBoundary fallbackTitle="Investigative Priority Engine Intercept">
             <InvestigativePriorityPanel
+              caseId={caseId}
+              onOpenWarrantModal={() => setIsWarrantOpen(true)}
+              onOpenIngestionModal={() => setIsIngestionOpen(true)}
+            />
+          </ErrorBoundary>
+        </div>
+      )}
+
+      {/* Tactical Solutions Tab: 72h playbook + legal sections (PS: actionable intelligence) */}
+      {currentTab === 'police_solutions' && (
+        <div className="h-full">
+          <ErrorBoundary fallbackTitle="Tactical Solutions Engine Intercept">
+            <PoliceSolutionsPanel
               caseId={caseId}
               onOpenWarrantModal={() => setIsWarrantOpen(true)}
               onOpenIngestionModal={() => setIsIngestionOpen(true)}
@@ -708,6 +723,13 @@ export const App: React.FC = () => {
               <CrossSyndicateFusion onSelectCase={(cid) => { setCaseId(cid); setCurrentTab('workspace'); }} />
             )}
           </div>
+        </div>
+      )}
+
+      {/* Threat Forecast Tab: Markov-chain syndicate phase prediction (PS: suspicious patterns) */}
+      {currentTab === 'forecast' && (
+        <div className="h-full">
+          <ThreatForecastConsole caseId={caseId} />
         </div>
       )}
 

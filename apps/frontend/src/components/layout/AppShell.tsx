@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Network, LayoutDashboard, Clock, Upload, Download,
-  ShieldCheck, Shield, Navigation, FileCheck, ShieldAlert,
+  ShieldCheck, Shield, Navigation, FileCheck, ShieldAlert, TrendingUp,
   Lock, Siren, FolderGit2, Trash2, Scale, ChevronLeft, ChevronRight, Volume2, BarChart3
 } from 'lucide-react';
 import { Case } from '../../types';
@@ -83,7 +83,9 @@ export const AppShell: React.FC<AppShellProps> = ({
     { id: 'portal',                   label: 'Mission Portal',        icon: ShieldAlert },
     { id: 'workspace',                label: 'Case Workspace',        icon: LayoutDashboard },
     { id: 'analytics',                label: 'Intelligence Analytics', icon: BarChart3 },
+    { id: 'forecast',                 label: 'Threat Forecast',       icon: TrendingUp },
     { id: 'investigative_priorities', label: 'Priority Assessment',   icon: Scale },
+    { id: 'police_solutions',         label: 'Tactical Solutions',    icon: ShieldCheck },
     { id: 'ledger',                   label: 'Forensic Ledger',       icon: Lock },
     { id: 'network',                  label: 'Network Canvas',        icon: Network },
     { id: 'timeline',                 label: 'Timeline',              icon: Clock },
