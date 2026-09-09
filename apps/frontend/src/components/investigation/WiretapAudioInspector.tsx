@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Volume2, Play, Pause, Mic, Radio, FileText, UserCheck, ShieldAlert } from 'lucide-react';
+import { Volume2, Play, Pause, Mic, Radio, FileText, UserCheck, ShieldAlert, RefreshCw } from 'lucide-react';
+import { fetchCaseAudioTranscripts } from '../../services/api';
 
 interface TranscriptLine {
   id: number;
@@ -40,19 +41,82 @@ const MOCK_TRANSCRIPT: TranscriptLine[] = [
   },
 ];
 
-export const WiretapAudioInspector: React.FC = () => {
+// Map the backend /audio-transcripts shape (recordings[].segments[]) to transcript rows
+const mapBackendRecording = (payload: any): TranscriptLine[] => {
+  const recordings = Array.isArray(payload?.recordings) ? payload.recordings : [];
+  if (recordings.length === 0) return [];
+  const segments = Array.isArray(recordings[0]?.segments) ? recordings[0].segments : [];
+  return segments.map((seg: any, idx: number) => {
+    const start = typeof seg.start_time === 'number' ? seg.start_time : idx * 3;
+    const mm = String(Math.floor(start / 60)).padStart(2, '0');
+    const ss = String(Math.floor(start % 60)).padStart(2, '0');
+    return {
+      id: idx + 1,
+      time: `${mm}:${ss}`,
+      speaker: seg.speaker || 'Unknown Speaker',
+      text: seg.text || '',
+      entities: Array.isArray(seg.entities) ? seg.entities.map((e: any) => String(e)) : [],
+    };
+  }).filter((l: TranscriptLine) => l.text.length > 0);
+};
+
+interface WiretapAudioInspectorProps {
+  caseId?: string;
+}
+
+export const WiretapAudioInspector: React.FC<WiretapAudioInspectorProps> = ({ caseId }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeLine, setActiveLine] = useState(0);
+  const [transcript, setTranscript] = useState<TranscriptLine[]>(MOCK_TRANSCRIPT);
+  const [isLiveFeed, setIsLiveFeed] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(!!caseId);
+
+  // Load real case intercept transcripts (falls back to mock wiretap demo data)
+  useEffect(() => {
+    if (!caseId) {
+      setTranscript(MOCK_TRANSCRIPT);
+      setIsLiveFeed(false);
+      setIsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsLoading(true);
+    fetchCaseAudioTranscripts(caseId)
+      .then((payload) => {
+        if (cancelled) return;
+        const lines = mapBackendRecording(payload);
+        if (lines.length > 0) {
+          setTranscript(lines);
+          setIsLiveFeed(true);
+        } else {
+          setTranscript(MOCK_TRANSCRIPT);
+          setIsLiveFeed(false);
+        }
+        setActiveLine(0);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTranscript(MOCK_TRANSCRIPT);
+          setIsLiveFeed(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [caseId]);
 
   useEffect(() => {
     let interval: any = null;
     if (isPlaying) {
       interval = setInterval(() => {
-        setActiveLine(prev => (prev + 1) % MOCK_TRANSCRIPT.length);
+        setActiveLine(prev => (prev + 1) % transcript.length);
       }, 3000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, transcript.length]);
+
+  const activeIdx = Math.min(activeLine, transcript.length - 1);
 
   return (
     <div className="card-3d p-4 rounded-xl border border-white/5 bg-surface/90 font-sans space-y-4">
@@ -64,8 +128,14 @@ export const WiretapAudioInspector: React.FC = () => {
             Live Audio Wiretap & Transcript Intercept
           </span>
         </div>
-        <span className="px-2.5 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold">
-          FREQUENCY: 844.2 MHz (ENCRYPTED)
+        <span
+          className={`px-2.5 py-1 rounded font-mono text-xs font-bold border ${
+            isLiveFeed
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+          }`}
+        >
+          {isLiveFeed ? 'CASE INTERCEPT FEED (SHA-256)' : 'FREQUENCY: 844.2 MHz (ENCRYPTED)'}
         </span>
       </div>
 
@@ -89,21 +159,25 @@ export const WiretapAudioInspector: React.FC = () => {
                 isPlaying ? 'bg-amber-400' : 'bg-slate-700'
               }`}
               style={{
-                height: isPlaying ? `${Math.floor(Math.sin(idx + activeLine) * 12 + 18)}px` : '6px',
+                height: isPlaying ? `${Math.floor(Math.sin(idx + activeIdx) * 12 + 18)}px` : '6px',
               }}
             />
           ))}
         </div>
 
         <div className="font-mono text-xs text-amber-400 font-bold shrink-0">
-          {MOCK_TRANSCRIPT[activeLine].time} / 00:30
+          {isLoading ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            `${transcript[activeIdx]?.time ?? '00:00'} / 00:30`
+          )}
         </div>
       </div>
 
       {/* Transcript Line-by-Line List */}
       <div className="space-y-2 pr-1">
-        {MOCK_TRANSCRIPT.map((line, idx) => {
-          const isActive = idx === activeLine;
+        {transcript.map((line, idx) => {
+          const isActive = idx === activeIdx;
           return (
             <div
               key={line.id}

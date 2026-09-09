@@ -474,7 +474,7 @@ export const App: React.FC = () => {
                   </div>
                 )}
                 {leftSubTab === 'wiretap' && (
-                  <WiretapAudioInspector />
+                  <WiretapAudioInspector caseId={caseId} />
                 )}
                 {leftSubTab === 'path' && (
                   <PathFinderPanel
