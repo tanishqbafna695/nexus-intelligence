@@ -557,8 +557,19 @@ export const fetchPoliceSolutions = async (caseId: string): Promise<any> => {
   return generatedReport;
 };
 
-// Wire unmounted prototype components to real endpoints with safe fallbacks
-export const fetchCrossSyndicateFusion = async (): Promise<any> => ({ fusion_clusters: [] });
+// Cross-syndicate fusion: live backend data with defensive fallback (Plan Phase 2)
+export const fetchCrossSyndicateFusion = async (): Promise<any> => {
+  try {
+    const res = await fetch(`${API_BASE}/cross-syndicate-fusion`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      notifyBackendHealth(true);
+      return await res.json();
+    }
+  } catch (e) {
+    notifyBackendHealth(false);
+  }
+  return { identified_umbrella_cartels: [], total_cases_analyzed: 0 };
+};
 export const fetchCrossCartelFusion = fetchCrossSyndicateFusion;
 
 export const fetchMLPerformanceMetrics = async (caseId: string): Promise<any> => {
@@ -653,7 +664,18 @@ export const trainDataset = async (caseId: string, type: string = "CDR", records
   return { status: 'COMPLETE', message: `Calibrated on ${records.length} records.` };
 };
 
-export const fetchThreatForecast = async (caseId: string): Promise<any> => ({ current_syndicate_phase: 'INCEPTION' });
+export const fetchThreatForecast = async (caseId: string): Promise<any> => {
+  try {
+    const res = await fetch(`${API_BASE}/cases/${caseId}/threat-forecast`, { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      notifyBackendHealth(true);
+      return await res.json();
+    }
+  } catch (e) {
+    notifyBackendHealth(false);
+  }
+  return { current_syndicate_phase: 'INCEPTION' };
+};
 
 // ── Bounded ML Training Subsystem Endpoints ─────────────────────────────────
 export const fetchMLTasks = async (): Promise<any> => {

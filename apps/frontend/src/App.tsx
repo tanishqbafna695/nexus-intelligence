@@ -20,14 +20,17 @@ import { GeoSpatialMapPanel } from './components/investigation/GeoSpatialMapPane
 import { AudioEvidenceTranscriptPanel } from './components/investigation/AudioEvidenceTranscriptPanel';
 import { AudioBriefingModal } from './components/investigation/AudioBriefingModal';
 import { WiretapAudioInspector } from './components/investigation/WiretapAudioInspector';
+import { AnalyticsDashboard } from './components/analytics/AnalyticsDashboard';
+import { MLModelInspector } from './components/analytics/MLModelInspector';
+import { CrossSyndicateFusion } from './components/analytics/CrossSyndicateFusion';
 import { WarrantGeneratorModal } from './components/investigation/WarrantGeneratorModal';
 import { EvidenceLedger } from './components/evidence/EvidenceLedger';
 import { InvestigativePriorityPanel } from './components/investigation/InvestigativePriorityPanel';
 import { LandingPortal } from './components/layout/LandingPortal';
 import { CaseManagerModal } from './components/layout/CaseManagerModal';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
-import { GraphData, Node, NodeType, Case, Edge } from './types';
-import { fetchGraph, fetchCommunities, triggerPdfDownload, fetchCases, createCase, deleteCase, checkBackendHealth, onBackendHealthChange, isDemoModeActive, setDemoModeActive } from './services/api';
+import { GraphData, Node, NodeType, Case, Edge, AnalyticsResponse } from './types';
+import { fetchGraph, fetchCommunities, triggerPdfDownload, fetchCases, createCase, deleteCase, checkBackendHealth, onBackendHealthChange, isDemoModeActive, setDemoModeActive, fetchAnalytics } from './services/api';
 import { ClientIntelligenceEngine } from './services/clientIntelligenceEngine';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
@@ -99,6 +102,8 @@ export const App: React.FC = () => {
 
   // Phase 7 States
   const [leftSubTab, setLeftSubTab] = useState<string>('agent');
+  const [analyticsSubTab, setAnalyticsSubTab] = useState<string>('overview');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsResponse | null>(null);
   const [maxTimestamp, setMaxTimestamp] = useState<string | null>(null);
   const [showCommunities, setShowCommunities] = useState<boolean>(false);
   const [communities, setCommunities] = useState<Array<{ community_id: number; members: string[] }>>(OFFLINE_ANALYTICS['CASE-001'].communities);
@@ -188,6 +193,21 @@ export const App: React.FC = () => {
   const handleApplyHighlight = (nodes: string[], edges: string[]) => {
     setHighlightNodes(nodes);
     setHighlightEdges(edges);
+  };
+
+  // Load analytics data when the Intelligence Analytics tab opens (Plan Phase 2)
+  useEffect(() => {
+    if (currentTab === 'analytics' && caseId) {
+      fetchAnalytics(caseId).then(setAnalyticsData).catch(() => setAnalyticsData(null));
+    }
+  }, [currentTab, caseId]);
+
+  const handleAnalyticsSelectNode = (nodeId: string) => {
+    const node = graphData.nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNode(node);
+      setCurrentTab('workspace');
+    }
   };
 
   const handleToggleNodeType = (type: NodeType) => {
@@ -651,6 +671,43 @@ export const App: React.FC = () => {
               onOpenIngestionModal={() => setIsIngestionOpen(true)}
             />
           </ErrorBoundary>
+        </div>
+      )}
+
+      {/* Intelligence Analytics Tab: Overview / ML Inspector / Cross-Syndicate Fusion (Plan Phase 2) */}
+      {currentTab === 'analytics' && (
+        <div className="h-full flex flex-col gap-2">
+          <div className="flex bg-black/60 p-1 rounded-xl border border-white/5 shrink-0">
+            {['overview', 'ml', 'fusion'].map((sub) => (
+              <button
+                key={sub}
+                onClick={() => setAnalyticsSubTab(sub)}
+                className="flex-1 btn-3d py-1.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-lg transition-all"
+                style={{
+                  background: analyticsSubTab === sub ? 'rgba(6,182,212,0.12)' : 'transparent',
+                  border: analyticsSubTab === sub ? '1px solid rgba(6,182,212,0.3)' : '1px solid transparent',
+                  color: analyticsSubTab === sub ? '#06B6D4' : '#64748B',
+                }}
+              >
+                {sub === 'overview' ? 'Analytics Overview' : sub === 'ml' ? 'ML Inspector' : 'Cross-Syndicate Fusion'}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            {analyticsSubTab === 'overview' && (
+              <AnalyticsDashboard analytics={analyticsData} onSelectNode={handleAnalyticsSelectNode} />
+            )}
+            {analyticsSubTab === 'ml' && (
+              <MLModelInspector
+                caseId={caseId}
+                onFocusNode={handleAnalyticsSelectNode}
+                onApplyHighlight={handleApplyHighlight}
+              />
+            )}
+            {analyticsSubTab === 'fusion' && (
+              <CrossSyndicateFusion onSelectCase={(cid) => { setCaseId(cid); setCurrentTab('workspace'); }} />
+            )}
+          </div>
         </div>
       )}
 
